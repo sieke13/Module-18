@@ -1,0 +1,33 @@
+{
+    "name": "googlebooks-app",
+    "version": "1.0.0",
+    "description": "",
+    "main": "server/server.js",
+    "scripts": {
+        "start": "node server/dist/server.js",
+        "develop": "concurrently \"cd server && npm run watch\" \"cd client && npm run dev\"",
+        "start:dev": "npm run develop",
+        "install": "cd server && npm i && cd ../client && npm i",
+        "render-build": "npm install && npm run build",
+        "render-postbuild": "npm install --prefix client --production=false && npm run build --prefix client",
+        "watch": "nodemon --exec ts-node src/server.ts",
+        "build": "concurrently \"cd server && npm run build\" \"cd client && npm run build\""
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "devDependencies": {
+        "@types/body-parser": "^1.19.5",
+        "@types/cors": "^2.8.17",
+        "@types/dotenv": "^6.1.1",
+        "@types/express": "^5.0.0",
+        "@types/jsonwebtoken": "^9.0.8",
+        "@types/node": "^22.13.4",
+        "concurrently": "^8.2.2",
+        "typescript": "^5.7.3"
+    },
+    "dependencies": {
+        "@apollo/server": "^4.11.3",
+        "express": "^4.21.2"
+    }
+}
