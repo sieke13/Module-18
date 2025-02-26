@@ -17,7 +17,7 @@ class AuthService {
 
   loggedIn() {
     const token = this.getToken();
-    return token && !this.isTokenExpired(token) ? true : false;
+    return !!token && !this.isTokenExpired(token);
   }
 
   isTokenExpired(token: string) {
@@ -34,17 +34,21 @@ class AuthService {
   }
 
   getToken() {
-    return localStorage.getItem('id_token');
+    const token = localStorage.getItem('id_token');
+    console.log('Getting token:', token ? 'Found token' : 'No token');
+    return token;
   }
 
   login(idToken: string) {
     localStorage.setItem('id_token', idToken);
     window.location.assign('/');
+    console.log('Token saved:', idToken);
   }
 
   logout() {
     localStorage.removeItem('id_token');
     window.location.assign('/');
+    console.log('Token removed');
   }
 }
 

@@ -1,39 +1,47 @@
-import { useQuery, useMutation, gql } from '@apollo/client';
+import { useQuery, useMutation } from '@apollo/client';
 import { Container, Card, Button, Row, Col } from 'react-bootstrap';
-import { GET_ME } from '../queries';
-import Auth from '../utils/auth.js';
-import { removeBookId } from '../utils/localStorage.js';
-import type { Book } from '../models/Book.js';
 
-export const REMOVE_BOOK = gql`
-  mutation removeBook($bookId: ID!) {
-    removeBook(bookId: $bookId) {
-      _id
-      username
-      email
-      savedBooks {
-        bookId
-        title
-        authors
-        description
-        image
-        link
-      }
-    }
-  }
-`;
+import Auth from '../utils/auth';
+import { removeBookId } from '../utils/localStorage';
+import type { Book } from '../models/Book';
+import { REMOVE_BOOK } from '../mutations';
+import { GET_ME } from '../queries';
 
 const SavedBooks = () => {
-  const { loading, data } = useQuery(GET_ME);
-  const [removeBook] = useMutation(REMOVE_BOOK);
+  // Add this near the top of your SavedBooks.tsx component
+  const isLoggedIn = Auth.loggedIn();
+  console.log('Is user logged in?', isLoggedIn);
+  console.log('Token:', Auth.getToken());
 
-  const userData = data?.me || {
-    username: '',
-    email: '',
-    password: '',
-    savedBooks: [],
-  };
+  // Fetch the user data with logging
+  const { loading, error, data } = useQuery(GET_ME, {
+    fetchPolicy: 'network-only', // Don't use cache for this query
+    onCompleted: (data) => console.log('User data loaded:', data),
+    onError: (error) => console.error('Error loading user data:', error),
+  });
 
+  // Log what we're getting
+  console.log('SavedBooks data:', data);
+  console.log('SavedBooks loading:', loading);
+  console.log('SavedBooks error:', error);
+
+  const [removeBook] = useMutation(REMOVE_BOOK, {
+    update(cache, { data: { removeBook } }) {
+      try {
+        cache.writeQuery({
+          query: GET_ME,
+          data: { me: removeBook },
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  });
+
+  // Get the user data from the GraphQL query
+  const userData = data?.me || {};
+
+  // create function that accepts the book's mongo _id value as param and deletes the book from the database
   const handleDeleteBook = async (bookId: string) => {
     const token = Auth.loggedIn() ? Auth.getToken() : null;
 
@@ -43,7 +51,7 @@ const SavedBooks = () => {
 
     try {
       await removeBook({
-        variables: { bookId },
+        variables: { bookId }
       });
 
       // upon success, remove book's id from localStorage
@@ -53,6 +61,7 @@ const SavedBooks = () => {
     }
   };
 
+  // if data isn't here yet, say so
   if (loading) {
     return <h2>LOADING...</h2>;
   }
@@ -70,14 +79,14 @@ const SavedBooks = () => {
       </div>
       <Container>
         <h2 className='pt-5'>
-          {userData.savedBooks.length
+          {userData.savedBooks?.length
             ? `Viewing ${userData.savedBooks.length} saved ${
                 userData.savedBooks.length === 1 ? 'book' : 'books'
               }:`
             : 'You have no saved books!'}
         </h2>
         <Row>
-          {userData.savedBooks.map((book: Book) => {
+          {userData.savedBooks?.map((book: Book) => {
             return (
               <Col md='4' key={book.bookId}>
                 <Card border='dark'>
@@ -90,7 +99,7 @@ const SavedBooks = () => {
                   ) : null}
                   <Card.Body>
                     <Card.Title>{book.title}</Card.Title>
-                    <p className='small'>Authors: {book.authors}</p>
+                    <p className='small'>Authors: {book.authors.join(', ')}</p>
                     <Card.Text>{book.description}</Card.Text>
                     <Button
                       className='btn-block btn-danger'
