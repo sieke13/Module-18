@@ -5,15 +5,13 @@
     "type": "module",
     "scripts": {
         "dev": "vite",
-        "start": "vite",
-        "build": "vite build",
-        "lint": "eslint src --ext js,jsx --report-unused-disable-directives --max-warnings 0",
+        "build": "tsc && vite build",
         "preview": "vite preview"
     },
     "dependencies": {
-        "@apollo/client": "^3.13.1",
+        "@apollo/client": "^3.7.14",
         "bootstrap": "^5.2.3",
-        "graphql": "^16.10.0",
+        "graphql": "^16.6.0",
         "jwt-decode": "^4.0.0",
         "react": "^18.2.0",
         "react-bootstrap": "^2.7.4",

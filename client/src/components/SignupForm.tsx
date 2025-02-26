@@ -1,79 +1,93 @@
 import { useState } from 'react';
-import type { ChangeEvent, FormEvent } from 'react';
-import { Form, Button } from 'react-bootstrap';
-import Auth from '../utils/auth.js';
-import type { User } from '../models/User.js';
+import { Form, Button, Alert } from 'react-bootstrap';
+import { useMutation } from '@apollo/client';
+import { ADD_USER } from '../mutations';
+import Auth from '../utils/auth';
+import { User, INITIAL_FORM_STATE } from '../models/User';
 
-const SignupForm = ({ handleModalClose }: { handleModalClose: () => void }) => {
-  const [userFormData, setUserFormData] = useState<User>({ 
-    username: '', 
-    email: '', 
-    password: '', 
-    savedBooks: [] 
-  });
+interface SignUpFormProps {
+  handleModalClose: () => void;
+}
 
-  const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
+const SignUpForm: React.FC<SignUpFormProps> = ({ handleModalClose }) => {
+  const [userFormData, setUserFormData] = useState<User>(INITIAL_FORM_STATE);
+  const [showAlert, setShowAlert] = useState(false);
+
+  const [addUser] = useMutation(ADD_USER);
+
+  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target;
     setUserFormData({ ...userFormData, [name]: value });
   };
 
-  const handleFormSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleFormSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    
-    // Create mock token and auto-register
-    const mockToken = 'mock-jwt-token';
-    Auth.login(mockToken);
-    handleModalClose();
 
-    // Clear form
-    setUserFormData({
-      username: '',
-      email: '',
-      password: '',
-      savedBooks: [],
-    });
+    try {
+      const { data } = await addUser({
+        variables: { ...userFormData }
+      });
+
+      Auth.login(data.addUser.token);
+      handleModalClose();
+    } catch (err) {
+      console.error(err);
+      setShowAlert(true);
+    }
+
+    setUserFormData(INITIAL_FORM_STATE);
   };
 
   return (
-    <Form onSubmit={handleFormSubmit}>
-      <Form.Group className='mb-3'>
-        <Form.Label htmlFor='username'>Username</Form.Label>
-        <Form.Control
-          type='text'
-          placeholder='Enter any username'
-          name='username'
-          onChange={handleInputChange}
-          value={userFormData.username || ''}
-        />
-      </Form.Group>
+    <>
+      {showAlert && (
+        <Alert variant='danger' onClose={() => setShowAlert(false)} dismissible>
+          Something went wrong with your signup!
+        </Alert>
+      )}
+      <Form onSubmit={handleFormSubmit}>
+        <Form.Group>
+          <Form.Label>Username</Form.Label>
+          <Form.Control
+            type='text'
+            placeholder='Your username'
+            name='username'
+            onChange={handleInputChange}
+            value={userFormData.username}
+            required
+          />
+        </Form.Group>
 
-      <Form.Group className='mb-3'>
-        <Form.Label htmlFor='email'>Email</Form.Label>
-        <Form.Control
-          type='text'
-          placeholder='Enter any email'
-          name='email'
-          onChange={handleInputChange}
-          value={userFormData.email || ''}
-        />
-      </Form.Group>
+        <Form.Group>
+          <Form.Label>Email</Form.Label>
+          <Form.Control
+            type='email'
+            placeholder='Your email'
+            name='email'
+            onChange={handleInputChange}
+            value={userFormData.email}
+            required
+          />
+        </Form.Group>
 
-      <Form.Group className='mb-3'>
-        <Form.Label htmlFor='password'>Password</Form.Label>
-        <Form.Control
-          type='password'
-          placeholder='Enter any password'
-          name='password'
-          onChange={handleInputChange}
-          value={userFormData.password || ''}
-        />
-      </Form.Group>
-      
-      <Button type='submit' variant='success'>
-        Sign Up
-      </Button>
-    </Form>
+        <Form.Group>
+          <Form.Label>Password</Form.Label>
+          <Form.Control
+            type='password'
+            placeholder='Your password'
+            name='password'
+            onChange={handleInputChange}
+            value={userFormData.password}
+            required
+          />
+        </Form.Group>
+
+        <Button type='submit' variant='success'>
+          Sign Up
+        </Button>
+      </Form>
+    </>
   );
 };
 
-export default SignupForm;
+export default SignUpForm;

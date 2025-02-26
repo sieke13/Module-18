@@ -1,66 +1,50 @@
-import { jwtDecode } from "jwt-decode";
+import { jwtDecode } from 'jwt-decode';
 
 interface UserToken {
-  name?: string;
+  data: {
+    username: string;
+    email: string;
+    _id: string;
+  };
   exp: number;
 }
 
 class AuthService {
-  /**
-   * Get user profile from token
-   * @returns Decoded user profile object
-   */
   getProfile() {
     const token = this.getToken();
     return token ? jwtDecode<UserToken>(token) : null;
   }
 
-  /**
-   * Check if user is logged in
-   * @returns true if logged in, false otherwise
-   */
-  loggedIn(): boolean {
+  loggedIn() {
     const token = this.getToken();
-    return !!token && !this.isTokenExpired(token);
+    return token && !this.isTokenExpired(token) ? true : false;
   }
 
-  /**
-   * Check if the token is expired
-   * @param token - JWT token string
-   * @returns true if expired, false otherwise
-   */
-  isTokenExpired(token: string): boolean {
+  isTokenExpired(token: string) {
     try {
       const decoded = jwtDecode<UserToken>(token);
-      return decoded.exp < Date.now() / 1000;
+      if (decoded.exp < Date.now() / 1000) {
+        localStorage.removeItem('id_token');
+        return true;
+      }
+      return false;
     } catch (err) {
-      return true; // Consider expired if decoding fails
+      return true;
     }
   }
 
-  /**
-   * Get token from localStorage
-   * @returns JWT token string or null if not found
-   */
-  getToken(): string | null {
-    return localStorage.getItem("id_token");
+  getToken() {
+    return localStorage.getItem('id_token');
   }
 
-  /**
-   * Save user token & reload page
-   * @param idToken - JWT token string
-   */
-  login(idToken: string): void {
-    localStorage.setItem("id_token", idToken);
-    window.location.assign("/"); // Reload page
+  login(idToken: string) {
+    localStorage.setItem('id_token', idToken);
+    window.location.assign('/');
   }
 
-  /**
-   * Remove token & reload page
-   */
-  logout(): void {
-    localStorage.removeItem("id_token");
-    window.location.assign("/"); // Reload page
+  logout() {
+    localStorage.removeItem('id_token');
+    window.location.assign('/');
   }
 }
 

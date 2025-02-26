@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'url';
 import { ApolloServer } from '@apollo/server';
 import { expressMiddleware } from '@apollo/server/express4';
-import bodyParser from 'body-parser';
+//port bodyParser from 'body-parser';
 import dotenv from 'dotenv';
 
 import connectDB from './config/connection.js'; 
@@ -34,7 +34,7 @@ const startApolloServer = async () => {
   await server.start();
 
   //app.use(cors());
-  app.use(bodyParser.json());
+  app.use(express.json());
   app.use(express.urlencoded({ extended: false }));
 
   // ✅ Apply Apollo GraphQL Middleware with Authentication
@@ -46,6 +46,7 @@ const startApolloServer = async () => {
       if (authHeader) {
         try {
           user = authenticateToken(req); // Only authenticate if a token is provided
+          console.log("User: ", user);
         } catch (error) {
           console.error("Authentication error:", error);
           // Handle the error as needed (e.g., log it, return null, etc.)

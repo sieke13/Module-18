@@ -1,78 +1,77 @@
 import { useState } from 'react';
-import type { ChangeEvent, FormEvent } from 'react';
 import { Form, Button, Alert } from 'react-bootstrap';
 import { useMutation } from '@apollo/client';
-import { LOGIN_USER } from '../mutations.js';
-import Auth from '../utils/auth.js';
-import type { User } from '../models/User.js';
+import { LOGIN_USER } from '../mutations';
 
-const LoginForm = ({ handleModalClose }: { handleModalClose: () => void }) => {
-  const [userFormData, setUserFormData] = useState<User>({ username: '', email: '', password: '', savedBooks: [] });
-  const [validated, setValidated] = useState(false);
+import Auth from '../utils/auth';
+
+interface LoginFormProps {
+  handleModalClose: () => void;
+}
+
+const LoginForm: React.FC<LoginFormProps> = ({ handleModalClose }) => {
+  const [userFormData, setUserFormData] = useState({ email: '', password: '' });
   const [showAlert, setShowAlert] = useState(false);
 
   const [loginUser] = useMutation(LOGIN_USER);
 
-  const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target;
     setUserFormData({ ...userFormData, [name]: value });
   };
 
-  const handleFormSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleFormSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    // Always accept login without validation
     try {
-      // Create a mock token
-      const mockToken = 'mock-jwt-token';
-      
-      // Skip the actual login mutation and use mock data
-      Auth.login(mockToken);
-      
+      const { data } = await loginUser({
+        variables: { ...userFormData }
+      });
+
+      Auth.login(data.login.token);
       handleModalClose();
     } catch (err) {
       console.error(err);
-      // Even if there's an error, we'll proceed with login
-      Auth.login('mock-jwt-token');
-      handleModalClose();
+      setShowAlert(true);
     }
 
-    setUserFormData({
-      username: '',
-      email: '',
-      password: '',
-      savedBooks: [],
-    });
+    setUserFormData({ email: '', password: '' });
   };
 
   return (
     <>
-      <Form noValidate validated={validated} onSubmit={handleFormSubmit}>
-        <Form.Group className='mb-3'>
-          <Form.Label htmlFor='email'>Email</Form.Label>
+      {showAlert && (
+        <Alert variant='danger' onClose={() => setShowAlert(false)} dismissible>
+          Something went wrong with your login!
+        </Alert>
+      )}
+      <Form onSubmit={handleFormSubmit}>
+        <Form.Group>
+          <Form.Label>Email</Form.Label>
           <Form.Control
             type='email'
             placeholder='Your email'
             name='email'
             onChange={handleInputChange}
-            value={userFormData.email || ''}
+            value={userFormData.email}
+            required
           />
         </Form.Group>
 
-        <Form.Group className='mb-3'>
-          <Form.Label htmlFor='password'>Password</Form.Label>
+        <Form.Group>
+          <Form.Label>Password</Form.Label>
           <Form.Control
             type='password'
             placeholder='Your password'
             name='password'
             onChange={handleInputChange}
-            value={userFormData.password || ''}
+            value={userFormData.password}
+            required
           />
         </Form.Group>
-        <Button
-          type='submit'
-          variant='success'>
-          Submit
+
+        <Button type='submit' variant='success'>
+          Login
         </Button>
       </Form>
     </>

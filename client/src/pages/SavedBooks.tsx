@@ -1,10 +1,27 @@
-import { useQuery, useMutation } from '@apollo/client';
+import { useQuery, useMutation, gql } from '@apollo/client';
 import { Container, Card, Button, Row, Col } from 'react-bootstrap';
-import { GET_ME } from '../queries.js';
-import { REMOVE_BOOK } from '../mutations.js';
+import { GET_ME } from '../queries';
 import Auth from '../utils/auth.js';
 import { removeBookId } from '../utils/localStorage.js';
 import type { Book } from '../models/Book.js';
+
+export const REMOVE_BOOK = gql`
+  mutation removeBook($bookId: ID!) {
+    removeBook(bookId: $bookId) {
+      _id
+      username
+      email
+      savedBooks {
+        bookId
+        title
+        authors
+        description
+        image
+        link
+      }
+    }
+  }
+`;
 
 const SavedBooks = () => {
   const { loading, data } = useQuery(GET_ME);

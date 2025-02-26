@@ -6,9 +6,9 @@ export interface IUser extends Document {
   username: string;
   email: string;
   password: string;
-  savedBooks: Array<{
+  savedBooks?: Array<{
     bookId: string;
-    authors: string[];
+    authors?: string[];
     description?: string;
     title: string;
     image?: string;
@@ -47,16 +47,18 @@ const userSchema = new Schema<IUser>(
     username: {
       type: String,
       required: true,
-      unique: true,
+      trim: true,
     },
     email: {
       type: String,
       required: true,
       unique: true,
+      match: [/.+@.+\..+/, 'Must match an email address!'],
     },
     password: {
       type: String,
       required: true,
+      minlength: 1,
     },
     savedBooks: [bookSchema],
   },
