@@ -5,11 +5,7 @@ import { LOGIN_USER } from '../mutations';
 
 import Auth from '../utils/auth';
 
-interface LoginFormProps {
-  handleModalClose: () => void;
-}
-
-const LoginForm: React.FC<LoginFormProps> = ({ handleModalClose }) => {
+const LoginForm: React.FC = () => {
   const [userFormData, setUserFormData] = useState({ email: '', password: '' });
   const [showAlert, setShowAlert] = useState(false);
 
