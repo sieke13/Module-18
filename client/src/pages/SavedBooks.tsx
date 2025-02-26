@@ -14,7 +14,7 @@ const SavedBooks = () => {
   console.log('Token:', Auth.getToken());
 
   // Fetch the user data with logging
-  const { loading, error, data } = useQuery(GET_ME, {
+  const { loading, error, data, refetch } = useQuery(GET_ME, {
     fetchPolicy: 'network-only', // Don't use cache for this query
     onCompleted: (data) => console.log('User data loaded:', data),
     onError: (error) => console.error('Error loading user data:', error),
@@ -28,13 +28,23 @@ const SavedBooks = () => {
   const [removeBook] = useMutation(REMOVE_BOOK, {
     update(cache, { data: { removeBook } }) {
       try {
+        // Write back the updated data with the book removed
         cache.writeQuery({
           query: GET_ME,
-          data: { me: removeBook },
+          data: { me: removeBook }
         });
+        
+        console.log("Cache updated successfully after book removal");
       } catch (e) {
-        console.error(e);
+        console.error("Error updating cache after book removal:", e);
       }
+    },
+    onCompleted: () => {
+      // Force refetch data after deletion
+      refetch();
+    },
+    onError: (error) => {
+      console.error("Remove book mutation error:", error);
     }
   });
 
@@ -103,7 +113,10 @@ const SavedBooks = () => {
                     <Card.Text>{book.description}</Card.Text>
                     <Button
                       className='btn-block btn-danger'
-                      onClick={() => handleDeleteBook(book.bookId)}
+                      onClick={() => {
+                        console.log('Deleting book with ID:', book.bookId);
+                        handleDeleteBook(book.bookId);
+                      }}
                     >
                       Delete this Book!
                     </Button>
