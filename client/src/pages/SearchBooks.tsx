@@ -62,7 +62,7 @@ const SearchBooks = () => {
         title: book.volumeInfo.title,
         description: book.volumeInfo.description,
         image: book.volumeInfo.imageLinks?.thumbnail || '',
-        
+        link: book.volumeInfo.infoLink || book.volumeInfo.canonicalVolumeLink || '',
       }));
 
       setSearchedBooks(bookData);
@@ -81,28 +81,57 @@ const SearchBooks = () => {
     const token = Auth.loggedIn() ? Auth.getToken() : null;
 
     if (!token || !bookToSave) {
+      console.log("Missing token or book not found");
       return false;
     }
 
     try {
-      // Add console.log to check what we're sending
-      console.log('Saving book:', bookToSave);
+      // Add the link field if it's missing
+      const bookWithLink = {
+        ...bookToSave,
+        link: bookToSave.link || '' // Ensure link has at least empty string
+      };
       
-      const { data } = await saveBook({
-        variables: { bookData: { ...bookToSave } },
+      console.log('Saving book with link:', bookWithLink);
+      
+      const { data, errors } = await saveBook({
+        variables: { bookData: bookWithLink },
       });
 
-      // Log the response to see if it's successful
       console.log('Save book response:', data);
+      
+      // Log any GraphQL errors
+      if (errors) {
+        console.error('GraphQL errors:', errors);
+      }
 
       if (data && data.saveBook) {
         // If book successfully saves to user's account, save bookId to state
         setSavedBookIds([...savedBookIds, bookToSave.bookId]);
+        console.log('Book saved successfully to state');
       } else {
         console.error('Failed to save book - no data returned');
       }
     } catch (err) {
       console.error('Error saving book:', err);
+      
+      // Add more detailed error logging
+      if (err instanceof Error) {
+        console.error('Error message:', err.message);
+        console.error('Error stack:', err.stack);
+        
+        // Apollo Error specific properties
+        const apolloError = err as any;
+        if (apolloError.graphQLErrors?.length) {
+          console.error('GraphQL Errors:', apolloError.graphQLErrors);
+        }
+        if (apolloError.networkError) {
+          console.error('Network Error:', apolloError.networkError);
+          if (apolloError.networkError.result) {
+            console.error('Network Error Details:', apolloError.networkError.result);
+          }
+        }
+      }
     }
   };
 

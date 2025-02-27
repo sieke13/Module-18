@@ -51,27 +51,48 @@ const resolvers = {
       return { token, user };
     },
     saveBook: async (parent, { bookData }, context) => {
-      // Check if the user is authenticated
+      // Log details for debugging
+      console.log('saveBook resolver called');
+      console.log('Context:', context);
+      console.log('Book data:', bookData);
+      
+      // Check if user is authenticated
       if (!context.user) {
+        console.log('No authenticated user found');
         throw new AuthenticationError('You need to be logged in!');
       }
       
       try {
-        console.log('Server saving book:', bookData);
-        console.log('For user:', context.user._id);
+        console.log(`Finding user with ID: ${context.user._id}`);
         
-        // Update the user's document
-        const updatedUser = await User.findByIdAndUpdate(
-          context.user._id,
-          { $addToSet: { savedBooks: bookData } },
+        // Make sure we're using findOneAndUpdate correctly
+        const updatedUser = await User.findOneAndUpdate(
+          { _id: context.user._id },
+          { 
+            $addToSet: { 
+              savedBooks: {
+                bookId: bookData.bookId,
+                authors: bookData.authors || [],
+                description: bookData.description || '',
+                title: bookData.title,
+                image: bookData.image || '',
+                link: bookData.link || ''
+              } 
+            } 
+          },
           { new: true, runValidators: true }
         );
         
-        console.log('Updated user:', updatedUser);
+        if (!updatedUser) {
+          console.log(`No user found with ID: ${context.user._id}`);
+          throw new Error('User not found');
+        }
+        
+        console.log('Book saved successfully');
         return updatedUser;
       } catch (err) {
-        console.error('Server error saving book:', err);
-        throw new Error('Failed to save book');
+        console.error('Error in saveBook resolver:', err);
+        throw new Error(`Failed to save the book: ${err.message}`);
       }
     },
     removeBook: async (parent, { bookId }, context) => {
