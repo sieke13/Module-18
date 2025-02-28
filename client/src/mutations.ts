@@ -39,7 +39,9 @@ export const SAVE_BOOK = gql`
         description
         image
         link
+        __typename
       }
+      __typename
     }
   }
 `;
