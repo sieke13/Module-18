@@ -89,16 +89,14 @@ const SearchBooks = () => {
     }
   
     try {
-      const { data, errors } = await saveBook({
-        variables: { bookData: bookToSave },
+      const { data } = await saveBook({
+        variables: { 
+          bookData: bookToSave,
+          userEmail: Auth.getProfile()?.data?.email ?? ''
+        },
       });
   
-      console.log('GraphQL response:', { data, errors });
-  
-      if (errors) {
-        console.error('GraphQL errors:', errors);
-        return;
-      }
+      console.log('GraphQL response:', { data });
   
       if (!data || !data.saveBook) {
         console.error('Failed to save book - no data returned');

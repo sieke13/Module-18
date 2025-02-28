@@ -33,6 +33,7 @@ module.exports = {
   
   signToken: function ({ _id, username, email }) {
     const payload = { _id, username, email };
-    return jwt.verify({ data: payload }, secret, { expiresIn: expiration });
+    // CAMBIO AQUÍ: Usar sign en lugar de verify
+    return jwt.sign({ data: payload }, secret, { expiresIn: expiration });
   }
 };

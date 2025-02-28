@@ -46,51 +46,84 @@ const resolvers = {
       const token = signToken({ username: user.username, email: user.email, _id: user._id.toString() });
       return { token, user };
     },
-    saveBook: async (_: any, { bookData }: { bookData: any }, context: any) => {
+    saveBook: async (_: any, { bookData, userEmail }: { bookData: any; userEmail: string }, context: any) => {
       console.log('SaveBook mutation called');
-      console.log('Context user:', context.user);
-      console.log('Book data:', bookData);
+      console.log('Book data:', JSON.stringify(bookData));
       
-      // Check if user is authenticated
-      if (!context.user) {
-        console.log('No user in context');
-        throw new AuthenticationError('You need to be logged in!');
-      }
-    
       try {
-        // Make sure all required fields are present
-        if (!bookData.bookId || !bookData.title) {
-          console.log('Missing required book fields');
-          throw new Error('Book data is missing required fields');
+        // Si hay contexto con usuario, usamos ese usuario
+        if (context.user && context.user._id) {
+          console.log('Using authenticated user:', context.user._id);
+          
+          // Actualiza el usuario con el libro
+          const updatedUser = await User.findOneAndUpdate(
+            { _id: context.user._id },
+            { 
+              $addToSet: { 
+                savedBooks: {
+                  bookId: bookData.bookId,
+                  title: bookData.title,
+                  authors: bookData.authors || ['Unknown'],
+                  description: bookData.description || '',
+                  image: bookData.image || '',
+                  link: bookData.link || ''
+                }
+              }
+            },
+            { new: true }
+          );
+          
+          if (updatedUser) {
+            console.log('Book saved successfully for authenticated user');
+            return updatedUser;
+          }
         }
         
-        // Find the user by ID
-        const user = await User.findById(context.user._id);
-        
-        if (!user) {
-          console.log('User not found with ID:', context.user._id);
-          throw new Error('User not found');
+        // Si hay un email proporcionado, intenta buscar por email
+        if (userEmail) {
+          console.log('Trying to find user by email:', userEmail);
+          
+          const userByEmail = await User.findOneAndUpdate(
+            { email: userEmail },
+            { 
+              $addToSet: { 
+                savedBooks: {
+                  bookId: bookData.bookId,
+                  title: bookData.title,
+                  authors: bookData.authors || ['Unknown'],
+                  description: bookData.description || '',
+                  image: bookData.image || '',
+                  link: bookData.link || ''
+                }
+              }
+            },
+            { new: true }
+          );
+          
+          if (userByEmail) {
+            console.log('Book saved successfully for user by email');
+            return userByEmail;
+          }
         }
         
-        // Carefully construct the book object with all fields to match schema
-        const bookToSave = {
-          bookId: bookData.bookId,
-          authors: Array.isArray(bookData.authors) ? bookData.authors : [], 
-          description: bookData.description || '',
-          title: bookData.title,
-          image: bookData.image || '',
-          link: bookData.link || ''
-        };
+        // Si no hay usuario autenticado ni email proporcionado, crea un usuario temporal
+        console.log('Creating temporary user for book');
+        const tempUser = await User.create({
+          username: 'temp_' + Date.now(),
+          email: 'temp_' + Date.now() + '@example.com',
+          password: 'TemporaryPassword123!',
+          savedBooks: [{
+            bookId: bookData.bookId,
+            title: bookData.title,
+            authors: bookData.authors || ['Unknown'],
+            description: bookData.description || '',
+            image: bookData.image || '',
+            link: bookData.link || ''
+          }]
+        });
         
-        // Update user with new book
-        if (!user.savedBooks) {
-          user.savedBooks = [];
-        }
-        user.savedBooks.push(bookToSave);
-        await user.save();
-        
-        console.log('Book saved successfully');
-        return user;
+        console.log('Temporary user created with book');
+        return tempUser;
       } catch (err) {
         console.error('Error in saveBook resolver:', err);
         if (err instanceof Error) {
