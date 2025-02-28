@@ -16,9 +16,16 @@ const SavedBooks = () => {
   // Fetch the user data with logging
   const { loading, error, data, refetch } = useQuery(GET_ME, {
     fetchPolicy: 'network-only', // Don't use cache for this query
-    onCompleted: (data) => console.log('User data loaded:', data),
+    onCompleted: (data) => {
+      console.log('User data loaded:', data);
+      if (data.me && data.me.savedBooks) {
+        console.log('Saved books:', data.me.savedBooks);
+      }
+    },
     onError: (error) => console.error('Error loading user data:', error),
   });
+  
+  const userData = data?.me || { savedBooks: [] }; // Default to empty array if savedBooks is missing
 
   // Log what we're getting
   console.log('SavedBooks data:', data);
@@ -49,7 +56,7 @@ const SavedBooks = () => {
   });
 
   // Get the user data from the GraphQL query
-  const userData = data?.me || {};
+ 
 
   // create function that accepts the book's mongo _id value as param and deletes the book from the database
   const handleDeleteBook = async (bookId: string) => {

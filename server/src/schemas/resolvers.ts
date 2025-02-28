@@ -5,9 +5,15 @@ const resolvers = {
   Query: {
     me: async (_: any, __: any, context: any) => {
       if (!context.user) {
-        return null; 
+        return null;
       }
-      return User.findOne({ _id: context.user._id }).populate('savedBooks');
+  
+      const user = await User.findOne({ _id: context.user._id }).populate('savedBooks');
+      if (user && user.savedBooks) {
+        user.savedBooks = user.savedBooks.filter(book => book !== null); // Filter out null values
+      }
+  
+      return user;
     },
   },
   Mutation: {
@@ -37,19 +43,30 @@ const resolvers = {
       const token = signToken({ username: user.username, email: user.email, _id: user._id.toString() });
       return { token, user };
     },
-
     saveBook: async (_: any, { bookData }: { bookData: any }, context: any) => {
       if (!context.user) {
         throw new AuthenticationError('Not logged in');
       }
-      
+    
+      console.log('Book data received:', bookData); // Log the book data
+    
       if (!bookData || !bookData.bookId) {
-        throw new Error('Invalid book data'); 
+        throw new Error('Invalid book data');
       }
-
+    
+      // Ensure required fields are present
+      const validatedBookData = {
+        bookId: bookData.bookId,
+        authors: bookData.authors || ['No author to display'],
+        title: bookData.title || 'No title',
+        description: bookData.description || '', // Ensure description is not undefined
+        image: bookData.image || '',
+        link: bookData.link || '',
+      };
+    
       return User.findByIdAndUpdate(
         context.user._id,
-        { $addToSet: { savedBooks: bookData } },
+        { $addToSet: { savedBooks: validatedBookData } },
         { new: true, runValidators: true }
       );
     },
@@ -58,11 +75,9 @@ const resolvers = {
       if (!context.user) {
         throw new AuthenticationError('Not logged in');
       }
-
-      if (!bookId) {
-        throw new Error('Book ID is required'); 
-      }
-
+    
+      console.log('Removing book with ID:', bookId); // Log the book ID
+    
       return User.findByIdAndUpdate(
         context.user._id,
         { $pull: { savedBooks: { bookId } } },

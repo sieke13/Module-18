@@ -42,29 +42,29 @@ const SearchBooks = () => {
   // Create method to search for books and set state
   const handleFormSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-
+  
     if (!searchInput) {
       return false;
     }
-
+  
     try {
       const response = await searchGoogleBooks(searchInput);
-
+  
       if (!response.ok) {
-        throw new Error('something went wrong!');
+        throw new Error('Something went wrong!');
       }
-
+  
       const { items } = await response.json();
-
+  
       const bookData = items.map((book: GoogleAPIBook) => ({
         bookId: book.id,
         authors: book.volumeInfo.authors || ['No author to display'],
         title: book.volumeInfo.title,
-        description: book.volumeInfo.description || '', 
+        description: book.volumeInfo.description || '', // Ensure description is not undefined
         image: book.volumeInfo.imageLinks?.thumbnail || '',
         link: book.volumeInfo.infoLink || book.volumeInfo.canonicalVolumeLink || '',
       }));
-
+  
       setSearchedBooks(bookData);
       setSearchInput('');
     } catch (err) {
