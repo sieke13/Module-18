@@ -4,31 +4,30 @@ import "./App.css";
 import { ApolloClient, InMemoryCache, createHttpLink, ApolloProvider } from '@apollo/client';
 import { setContext } from '@apollo/client/link/context';
 
-// Create the HTTP link to your GraphQL API
+// Crear un enlace HTTP
 const httpLink = createHttpLink({
   uri: '/graphql',
 });
 
-// Add authentication to requests
+// Crear un enlace de autenticación
 const authLink = setContext((_, { headers }) => {
-  // Get the token from localStorage
+  // Obtener el token del localStorage
   const token = localStorage.getItem('id_token');
   
-  console.log('Adding token to request:', token ? 'Token exists' : 'No token');
+  console.log('Token for Apollo:', token ? 'exists' : 'none');
   
-  // Return the headers to context
+  // Devolver los encabezados al contexto
   return {
     headers: {
       ...headers,
       authorization: token ? `Bearer ${token}` : '',
-    }
+    },
   };
 });
 
-// Create the Apollo Client
 const client = new ApolloClient({
   link: authLink.concat(httpLink),
-  cache: new InMemoryCache()
+  cache: new InMemoryCache(),
 });
 
 function App(): JSX.Element {

@@ -92,7 +92,7 @@ const SearchBooks = () => {
       const { data } = await saveBook({
         variables: { 
           bookData: bookToSave,
-          userEmail: Auth.getProfile()?.data?.email ?? ''
+          userEmail: (Auth.getProfile() as { email: string }).email ?? ''
         },
       });
   

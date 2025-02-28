@@ -1,18 +1,12 @@
 import { jwtDecode } from 'jwt-decode';
 
-interface UserToken {
-  data: {
-    username: string;
-    email: string;
-    _id: string;
-  };
-  exp: number;
-}
-
 class AuthService {
   getProfile() {
     const token = this.getToken();
-    return token ? jwtDecode<UserToken>(token) : null;
+    if (!token) {
+      return null;
+    }
+    return jwtDecode(token);
   }
 
   loggedIn() {
@@ -20,35 +14,27 @@ class AuthService {
     return !!token && !this.isTokenExpired(token);
   }
 
-  isTokenExpired(token: string) {
+  isTokenExpired(token: string): boolean {
     try {
-      const decoded = jwtDecode<UserToken>(token);
-      if (decoded.exp < Date.now() / 1000) {
-        localStorage.removeItem('id_token');
-        return true;
-      }
-      return false;
+      const decoded: { exp: number } = jwtDecode(token);
+      return decoded.exp < Date.now() / 1000;
     } catch (err) {
-      return true;
+      return false;
     }
   }
 
   getToken() {
-    const token = localStorage.getItem('id_token');
-    console.log('Getting token:', token ? 'Found token' : 'No token');
-    return token;
+    return localStorage.getItem('id_token');
   }
 
-  login(idToken: string) {
+  login(idToken: string): void {
     localStorage.setItem('id_token', idToken);
     window.location.assign('/');
-    console.log('Token saved:', idToken);
   }
 
   logout() {
     localStorage.removeItem('id_token');
     window.location.assign('/');
-    console.log('Token removed');
   }
 }
 
