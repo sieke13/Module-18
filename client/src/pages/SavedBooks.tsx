@@ -1,7 +1,9 @@
+import React from 'react';
 import { useQuery, useMutation } from '@apollo/client';
 import { GET_ME } from '../queries'; // Asegúrate de que la ruta sea correcta
 import { REMOVE_BOOK } from '../mutations'; // Asegúrate de que la ruta sea correcta
 import Auth from '../utils/auth';
+import { Container, Card, Button, Row, Col } from 'react-bootstrap';
 
 // Define the SavedBook type
 interface SavedBook {
@@ -11,28 +13,27 @@ interface SavedBook {
   description?: string;
   image?: string;
 }
-import { Container, Card, Button, Row, Col } from 'react-bootstrap';
 
 const SavedBooks = () => {
-  // Añade logs para depuración
-  console.log('SavedBooks component rendered');
-  console.log('User authenticated:', Auth.loggedIn());
+  // Logs para depuración
+  console.log('Is user logged in?', Auth.loggedIn());
+  console.log('Token:', Auth.getToken());
   
-  // Usar useQuery para obtener los datos del usuario
+  // Usar useQuery para cargar los datos
   const { loading, error, data, refetch } = useQuery(GET_ME, {
-    // Añade esta opción para asegurarte de que el token se incluye
-    fetchPolicy: 'network-only'
+    fetchPolicy: 'network-only',
+    onCompleted: (data) => console.log('Query completed:', data),
+    onError: (error) => console.error('Query error:', error)
   });
   
-  console.log('Query data:', data);
-  console.log('Query error:', error);
+  console.log('SavedBooks data:', data);
+  console.log('SavedBooks loading:', loading);
+  console.log('SavedBooks error:', error);
   
   // Configurar la mutación para eliminar libros
   const [removeBook] = useMutation(REMOVE_BOOK);
 
   // Crear una función para eliminar un libro
-
-
   const handleDeleteBook = async (bookId: string): Promise<boolean> => {
     const token = Auth.loggedIn() ? Auth.getToken() : null;
 
@@ -54,31 +55,51 @@ const SavedBooks = () => {
     }
   };
 
-  // Si están cargando los datos, mostrar mensaje
+  // Si está cargando, mostrar mensaje
   if (loading) {
-    return <h2>CARGANDO...</h2>;
+    return <h2>Cargando...</h2>;
   }
-
-  // Manejar el caso de error
+  
+  // Si hay error, mostrar mensaje
   if (error) {
-    console.error('Error loading saved books:', error);
+    console.error('Error fetching saved books:', error);
     return (
       <Container>
-        <h2>Error cargando libros guardados</h2>
-        <p>{error.message}</p>
-        <Button onClick={() => Auth.logout()}>Cerrar sesión y volver a intentar</Button>
+        <h2>Error al cargar los libros guardados</h2>
+        <p>Error: {error.message}</p>
+        <p>Por favor, intenta cerrar sesión y volver a iniciarla.</p>
+        <Button onClick={() => Auth.logout()}>Cerrar sesión</Button>
       </Container>
     );
   }
-
-  // Verificar si tenemos datos
+  
+  // Verificar si hay datos
   if (!data || !data.me) {
-    console.log('No user data found');
+    console.log('User data loaded:', data);
+    
+    // Si no hay datos pero el usuario está autenticado
+    if (Auth.loggedIn()) {
+      return (
+        <Container>
+          <h2>No se pudieron cargar tus libros guardados</h2>
+          <p>Tu token de autenticación parece ser válido, pero no pudimos encontrar tus datos.</p>
+          <p>Esto puede ocurrir si:</p>
+          <ul>
+            <li>Tu cuenta fue eliminada del servidor</li>
+            <li>Hay un problema con la autenticación en el servidor</li>
+            <li>El servidor no puede acceder a la base de datos</li>
+          </ul>
+          <Button variant="warning" onClick={() => Auth.logout()}>Cerrar sesión e intentar de nuevo</Button>
+        </Container>
+      );
+    }
+    
+    // Si el usuario no está autenticado
     return (
       <Container>
-        <h2>No se encontraron datos de usuario</h2>
-        <p>Por favor, inicia sesión para ver tus libros guardados.</p>
-        <Button onClick={() => window.location.href = '/login'}>Iniciar sesión</Button>
+        <h2>Por favor inicia sesión</h2>
+        <p>Debes iniciar sesión para ver tus libros guardados.</p>
+        <Button variant="primary" onClick={() => window.location.href = '/login'}>Ir a iniciar sesión</Button>
       </Container>
     );
   }

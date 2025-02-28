@@ -5,21 +5,32 @@ import { signToken } from '../utils/auth.js';  // Añade la extensión .js
 export const resolvers = {
   Query: {
     me: async (parent, args, context) => {
-      console.log('ME QUERY - Context received:', JSON.stringify(context));
+      console.log('ME Query called with context:', JSON.stringify(context));
       
+      // Verificar si hay usuario en el contexto
       if (!context.user) {
-        throw new AuthenticationError('You need to be logged in!');
+        console.log('No user in context');
+        return null;
       }
       
-      console.log('Looking for user with ID:', context.user._id);
-      
       try {
-        const user = await User.findOne({ _id: context.user._id });  // Usa findOne en lugar de findById
-        console.log('User found?', !!user);
+        // Buscar el usuario por ID
+        console.log('Looking for user with ID:', context.user._id);
+        
+        // Usar findOne en lugar de findById
+        const user = await User.findOne({ _id: context.user._id });
+        
+        // Log del resultado
+        if (!user) {
+          console.log(`User not found with ID ${context.user._id}`);
+        } else {
+          console.log(`User found: ${user.username}`);
+        }
+        
         return user;
       } catch (err) {
-        console.error('Error finding user:', err);
-        throw new Error('Error finding user');
+        console.error('Error in me query:', err);
+        throw new Error('Failed to find user');
       }
     },
   },
