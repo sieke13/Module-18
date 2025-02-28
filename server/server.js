@@ -109,6 +109,57 @@ async function startServer() {
     }
   });
 
+  // Add this route to your server.js
+  app.get('/debug-mongo', async (req, res) => {
+    try {
+      // Test the basic MongoDB connection
+      const collections = await db.db.listCollections().toArray();
+      const userCollection = collections.find(c => c.name === 'users');
+      
+      if (!userCollection) {
+        return res.json({
+          success: false,
+          message: 'Users collection not found',
+          collections: collections.map(c => c.name)
+        });
+      }
+      
+      // Get a sample user
+      const users = await User.find().limit(1);
+      
+      if (users.length === 0) {
+        return res.json({
+          success: false,
+          message: 'No users found in database',
+          collectionExists: true
+        });
+      }
+      
+      const sampleUser = users[0];
+      
+      // Return basic info about the user
+      return res.json({
+        success: true,
+        message: 'MongoDB connection successful',
+        collections: collections.map(c => c.name),
+        sampleUser: {
+          _id: sampleUser._id.toString(),
+          username: sampleUser.username,
+          email: sampleUser.email,
+          bookCount: sampleUser.savedBooks ? sampleUser.savedBooks.length : 0
+        }
+      });
+    } catch (err) {
+      console.error('MongoDB debug error:', err);
+      return res.json({
+        success: false,
+        message: 'Error testing MongoDB connection',
+        error: err.message,
+        stack: err.stack
+      });
+    }
+  });
+
   // Apply Apollo middleware with specific CORS options
   app.use(
     '/graphql',
@@ -125,23 +176,29 @@ async function startServer() {
         
         if (authHeader) {
           try {
-            // Get the token from the auth header
             const token = authHeader.split(' ').pop().trim();
+            console.log('Processing token:', token.substring(0, 10) + '...');
             
-            // Verify the token using the secret
-            const { data } = jwt.verify(token, secret);
+            const decoded = jwt.verify(token, secret);
+            console.log('Token decoded successfully:', JSON.stringify(decoded));
             
-            // Set user to JUST the decoded data
-            user = data;
-            
-            console.log('User authenticated:', user.username);
-            console.log('User ID:', user._id);
+            if (decoded && decoded.data) {
+              // Set user to just the data from the token
+              user = decoded.data;
+              console.log('User extracted from token:', JSON.stringify(user));
+              
+              // Double check that the ID exists
+              if (!user._id) {
+                console.warn('Warning: User ID is missing from token data');
+              }
+            } else {
+              console.warn('Warning: Token decoded but has invalid structure');
+            }
           } catch (error) {
-            console.error('Token verification error:', error.message);
+            console.error('Token verification failed:', error.message);
           }
         }
         
-        // Return ONLY the user data, not the entire request
         return { user };
       }
     })
