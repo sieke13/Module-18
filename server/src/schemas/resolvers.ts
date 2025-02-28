@@ -1,6 +1,8 @@
 import User, { IUser } from '../models/User.js';
 import { signToken, AuthenticationError } from '../services/auth.js';
 
+// Al principio de tu archivo resolvers.ts, añade:
+
 const resolvers = {
   Query: {
     me: async (_: any, __: any, context: any) => {
@@ -48,14 +50,29 @@ const resolvers = {
     },
     saveBook: async (_: any, { bookData, userEmail }: { bookData: any; userEmail: string }, context: any) => {
       console.log('SaveBook mutation called');
-      console.log('Context received:', JSON.stringify(context));
       
       try {
+        // Log seguro de datos
+        if (context.user) {
+          console.log('User in context:', {
+            id: context.user._id,
+            username: context.user.username,
+            email: context.user.email
+          });
+        } else {
+          console.log('No user in context');
+        }
+        
+        console.log('Book data:', {
+          id: bookData.bookId,
+          title: bookData.title
+        });
+        
         let userId;
         
         // 1. Primero, intentamos obtener un usuario del contexto
         if (context.user && context.user._id) {
-          console.log('Using authenticated user:', context.user._id);
+          console.log('Using authenticated user ID:', context.user._id);
           userId = context.user._id;
         }
         // 2. Si no hay contexto pero tenemos email, buscar por email
@@ -89,7 +106,7 @@ const resolvers = {
               }
             }
           },
-          { new: true }
+          { new: true, runValidators: true }
         );
         
         if (!updatedUser) {
@@ -97,10 +114,10 @@ const resolvers = {
           throw new Error('User not found');
         }
         
-        console.log('Book saved successfully');
+        console.log('Book saved successfully for user:', updatedUser.username);
         return updatedUser;
       } catch (err) {
-        console.error('Error in saveBook resolver:', err);
+        console.error('Error in saveBook resolver:', err instanceof Error ? err.message : 'Unknown error');
         if (err instanceof Error) {
           throw new Error(`Failed to save book: ${err.message}`);
         } else {

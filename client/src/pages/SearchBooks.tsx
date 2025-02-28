@@ -3,6 +3,7 @@ import { useMutation } from '@apollo/client';
 import { SAVE_BOOK } from '../mutations';
 import { GET_ME } from '../queries';
 import type { FormEvent } from 'react';
+
 import { Container, Col, Form, Button, Card, Row } from 'react-bootstrap';
 
 import Auth from '../utils/auth';
@@ -74,54 +75,34 @@ const SearchBooks = () => {
 
   // Function to handle saving a book to the database
   const handleSaveBook = async (bookId: string) => {
-    const bookToSave = searchedBooks.find((book) => book.bookId === bookId);
-    if (!bookToSave) {
-      console.error('Book not found');
-      return;
-    }
-  
-    // Get token
-    const token = Auth.loggedIn() ? Auth.getToken() : null;
-  
-    if (!token) {
-      console.log('No token found - user not logged in');
-      return false;
-    }
-  
     try {
+      const bookToSave = searchedBooks.find((book) => book.bookId === bookId);
+      if (!bookToSave) {
+        throw new Error('Book not found');
+      }
+
       const { data } = await saveBook({
         variables: { 
-          bookData: bookToSave,
-          userEmail: (Auth.getProfile() as { email: string }).email ?? ''
+          bookData: {
+            bookId: bookToSave.bookId,
+            authors: bookToSave.authors || [],
+            description: bookToSave.description || '',
+            title: bookToSave.title,
+            image: bookToSave.image || '',
+            link: bookToSave.link || ''
+          },
+          userEmail: (Auth.getProfile() as { data: { email: string } })?.data?.email || null
         },
       });
-  
-      console.log('GraphQL response:', { data });
-  
-      if (!data || !data.saveBook) {
-        console.error('Failed to save book - no data returned');
-        return;
-      }
-  
+      
+      console.log('Book saved successfully:', data);
       setSavedBookIds([...savedBookIds, bookToSave.bookId]);
-      console.log('Book saved successfully:', data.saveBook);
     } catch (err) {
       console.error('Error saving book:', err);
       if (err instanceof Error) {
-        console.error('Error message:', err.message);
-        console.error('Error stack:', err.stack);
-        
-        // Apollo Error specific properties
-        const apolloError = err as any;
-        if (apolloError.graphQLErrors?.length) {
-          console.error('GraphQL Errors:', apolloError.graphQLErrors);
-        }
-        if (apolloError.networkError) {
-          console.error('Network Error:', apolloError.networkError);
-          if (apolloError.networkError.result) {
-            console.error('Network Error Details:', apolloError.networkError.result);
-          }
-        }
+        alert(`Failed to save book: ${err.message}`);
+      } else {
+        alert('Failed to save book due to an unknown error.');
       }
     }
   };
