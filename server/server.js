@@ -60,17 +60,66 @@ async function startServer() {
     }
   });
 
+  // Add the new debug-me route here
+  app.get('/debug-me', async (req, res) => {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader) {
+      return res.json({ success: false, message: 'No auth header provided' });
+    }
+    
+    try {
+      const token = authHeader.split(' ').pop().trim();
+      const decoded = jwt.verify(token, secret);
+      
+      // Test if we can find the user directly
+      const user = await User.findById(decoded.data._id);
+      
+      if (!user) {
+        return res.json({
+          success: false,
+          message: 'User found in token but not in database',
+          tokenUser: decoded.data
+        });
+      }
+      
+      // Add direct test of saving a book
+      const testBook = {
+        bookId: 'test-' + Date.now(),
+        title: 'Test Book',
+        authors: ['Test Author'],
+        description: 'Test description'
+      };
+      
+      user.savedBooks.push(testBook);
+      await user.save();
+      
+      return res.json({
+        success: true, 
+        message: 'User found and test book saved',
+        user: {
+          _id: user._id.toString(),
+          username: user.username,
+          books: user.savedBooks.length
+        }
+      });
+    } catch (err) {
+      console.error('Debug error:', err);
+      return res.json({ success: false, error: err.message });
+    }
+  });
+
   // Apply Apollo middleware with specific CORS options
   app.use(
     '/graphql',
     cors({
-      origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+      origin: ['http://localhost:3000', 'http://127.0.0.1:3000', 'https://module-18.onrender.com'],
       credentials: true,
       methods: ['POST', 'GET', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization'],
     }),
     expressMiddleware(server, {
-      context: async ({ req }) => {  // <--- Here's a second context setup
+      context: async ({ req }) => {
         const authHeader = req.headers.authorization;
         let user = null;
         
@@ -82,15 +131,17 @@ async function startServer() {
             // Verify the token using the secret
             const { data } = jwt.verify(token, secret);
             
-            // Set user to the decoded data
+            // Set user to JUST the decoded data
             user = data;
             
             console.log('User authenticated:', user.username);
+            console.log('User ID:', user._id);
           } catch (error) {
             console.error('Token verification error:', error.message);
           }
         }
         
+        // Return ONLY the user data, not the entire request
         return { user };
       }
     })

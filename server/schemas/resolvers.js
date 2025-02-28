@@ -51,10 +51,9 @@ const resolvers = {
       return { token, user };
     },
     saveBook: async (parent, { bookData }, context) => {
-      // Log details for debugging
-      console.log('saveBook resolver called');
+      console.log('SaveBook mutation called');
       console.log('Context:', context);
-      console.log('Book data:', bookData);
+      console.log('User in context:', context.user);
       
       // Check if user is authenticated
       if (!context.user) {
@@ -65,7 +64,6 @@ const resolvers = {
       try {
         console.log(`Finding user with ID: ${context.user._id}`);
         
-        // Make sure we're using findOneAndUpdate correctly
         const updatedUser = await User.findOneAndUpdate(
           { _id: context.user._id },
           { 
@@ -80,7 +78,7 @@ const resolvers = {
               } 
             } 
           },
-          { new: true, runValidators: true }
+          { new: true }
         );
         
         if (!updatedUser) {
@@ -92,7 +90,7 @@ const resolvers = {
         return updatedUser;
       } catch (err) {
         console.error('Error in saveBook resolver:', err);
-        throw new Error(`Failed to save the book: ${err.message}`);
+        throw new Error(`Failed to save book: ${err.message}`);
       }
     },
     removeBook: async (parent, { bookId }, context) => {
