@@ -8,7 +8,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 
 import connectDB from './config/connection.js'; 
-import typeDefs from './schemas/typeDefs';
+import { typeDefs } from './schemas/typeDefs.js';
 
 const jwt = require('jsonwebtoken');
 
