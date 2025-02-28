@@ -180,6 +180,32 @@ const SavedBooks = () => {
       >
         Ver datos de usuario
       </Button>
+      <Button 
+        variant="outline-primary"
+        className="mt-3"
+        onClick={() => {
+          const profile = Auth.getProfile() as { data?: { email: string } } | null;
+          if (profile?.data?.email) {
+            const debugUrl = `${window.location.origin}/debug-user/${profile.data.email}`;
+            // Abrir en la misma ventana para que regresar a la aplicación sea más fácil
+            window.location.href = debugUrl;
+          } else {
+            alert('No se pudo obtener el email del perfil');
+          }
+        }}
+      >
+        Verificar datos de usuario
+      </Button>
+      <Button 
+        variant="success" 
+        className="mt-3 ml-2"
+        onClick={() => {
+          // Forzar una recarga completa ignorando la caché
+          window.location.reload();
+        }}
+      >
+        Recargar página (forzar)
+      </Button>
     </Container>
   );
 };

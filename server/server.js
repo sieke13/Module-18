@@ -376,6 +376,104 @@ async function startServer() {
     }
   });
 
+  // Añadir este endpoint antes de inicializar el servidor Apollo
+  app.get('/api/user-books', async (req, res) => {
+    // Establecer el Content-Type para asegurar que la respuesta sea JSON
+    res.setHeader('Content-Type', 'application/json');
+    
+    try {
+      // Obtener token de autorización
+      const authHeader = req.headers.authorization;
+      if (!authHeader) {
+        return res.status(401).json({
+          success: false,
+          message: 'No authorization token provided'
+        });
+      }
+      
+      // Extraer token
+      const token = authHeader.split(' ').pop().trim();
+      if (!token) {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid authorization header format'
+        });
+      }
+      
+      // Verificar token
+      let decoded;
+      try {
+        decoded = jwt.verify(token, secret);
+      } catch (err) {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid token',
+          error: err.message
+        });
+      }
+      
+      // Si no hay datos de usuario en el token
+      if (!decoded.data) {
+        return res.status(401).json({
+          success: false,
+          message: 'Token has no user data'
+        });
+      }
+      
+      console.log('API: Looking for user with data:', {
+        id: decoded.data._id,
+        email: decoded.data.email
+      });
+      
+      // Buscar usuario por ID o email
+      let user;
+      if (decoded.data._id) {
+        user = await User.findById(decoded.data._id);
+      }
+      
+      // Si no se encontró por ID, intentar con email
+      if (!user && decoded.data.email) {
+        console.log('API: User not found by ID, trying by email:', decoded.data.email);
+        user = await User.findOne({ email: decoded.data.email });
+      }
+      
+      // Si no se encontró el usuario
+      if (!user) {
+        console.log('API: User not found in database');
+        return res.status(404).json({
+          success: false,
+          message: 'User not found',
+          tokenData: decoded.data
+        });
+      }
+      
+      console.log('API: User found:', {
+        id: user._id.toString(),
+        username: user.username,
+        email: user.email,
+        booksCount: user.savedBooks?.length || 0
+      });
+      
+      // Devolver el usuario con sus libros
+      return res.json({
+        success: true,
+        user: {
+          _id: user._id,
+          username: user.username,
+          email: user.email,
+          savedBooks: user.savedBooks || []
+        }
+      });
+    } catch (err) {
+      console.error('API Error:', err);
+      return res.status(500).json({
+        success: false,
+        message: 'Server error',
+        error: err.message
+      });
+    }
+  });
+
   // Apply Apollo middleware with specific CORS options
   app.use(
     '/graphql',
