@@ -5,22 +5,18 @@ import { signToken } from '../utils/auth';
 export const resolvers = {
   Query: {
     me: async (parent, args, context) => {
-      console.log('ME query context:', context.user ? 'User found' : 'No user in context');
+      console.log('ME QUERY - Context received:', JSON.stringify(context));
       
-      // If no context.user, the user is not authenticated
       if (!context.user) {
-        console.log('User not authenticated');
-        return null;
+        throw new AuthenticationError('You need to be logged in!');
       }
-
+      
+      console.log('Looking for user with ID:', context.user._id);
+      
       try {
-        // Find the user by ID from the context
-        const userData = await User.findOne({ _id: context.user._id })
-          .select('-__v -password')
-          .populate('savedBooks');
-          
-        console.log('User data found:', userData ? 'Success' : 'Not found');
-        return userData;
+        const user = await User.findById(context.user._id);
+        console.log('User found?', !!user);
+        return user;
       } catch (err) {
         console.error('Error finding user:', err);
         throw new Error('Error finding user');
@@ -52,68 +48,46 @@ export const resolvers = {
     },
     saveBook: async (parent, { bookData }, context) => {
       console.log('SaveBook mutation called');
-      console.log('Context:', JSON.stringify(context));
+      console.log('Context received:', JSON.stringify(context));
       console.log('Book data:', JSON.stringify(bookData));
       
-      // Check if user is authenticated
       if (!context.user) {
-        console.log('No user found in context');
+        console.log('No user in context');
         throw new AuthenticationError('You need to be logged in!');
       }
       
+      if (!context.user._id) {
+        console.log('User ID is missing in context!');
+        throw new Error('User ID is missing in authentication context');
+      }
+      
+      console.log('Attempting to find user with ID:', context.user._id);
+      
       try {
-        console.log(`Finding user with ID: ${context.user._id}`);
-        
-        // First try findById to check if the user exists
-        const existingUser = await User.findById(context.user._id);
-        
-        if (!existingUser) {
-          console.log(`User not found with ID: ${context.user._id}`);
-          
-          // Try an alternate approach - look up by email or username
-          if (context.user.email) {
-            console.log(`Trying to find user by email: ${context.user.email}`);
-            const userByEmail = await User.findOne({ email: context.user.email });
-            
-            if (userByEmail) {
-              console.log('User found by email instead of ID');
-              
-              // Save the book to this user instead
-              userByEmail.savedBooks.push({
+        const updatedUser = await User.findOneAndUpdate(
+          { _id: context.user._id },
+          { 
+            $addToSet: { 
+              savedBooks: {
                 bookId: bookData.bookId,
-                authors: bookData.authors || [],
-                description: bookData.description || '',
                 title: bookData.title,
+                authors: bookData.authors || ['Unknown'],
+                description: bookData.description || '',
                 image: bookData.image || '',
                 link: bookData.link || ''
-              });
-              
-              await userByEmail.save();
-              console.log('Book saved successfully via email lookup');
-              return userByEmail;
+              }
             }
-          }
-          
+          },
+          { new: true, runValidators: true }
+        );
+        
+        if (!updatedUser) {
+          console.log('User not found with ID:', context.user._id);
           throw new Error('User not found');
         }
         
-        console.log('User found, adding book');
-        
-        // Add the book to the user's savedBooks
-        existingUser.savedBooks.push({
-          bookId: bookData.bookId,
-          authors: bookData.authors || [],
-          description: bookData.description || '',
-          title: bookData.title,
-          image: bookData.image || '',
-          link: bookData.link || ''
-        });
-        
-        // Save the updated user
-        await existingUser.save();
-        
-        console.log('Book saved successfully via standard method');
-        return existingUser;
+        console.log('Book saved successfully');
+        return updatedUser;
       } catch (err) {
         console.error('Error in saveBook resolver:', err);
         throw new Error(`Failed to save book: ${err.message}`);

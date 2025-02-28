@@ -245,34 +245,49 @@ async function startServer() {
     }),
     expressMiddleware(server, {
       context: async ({ req }) => {
+        // Obtener el token de autenticación
         const authHeader = req.headers.authorization;
         let user = null;
         
         if (authHeader) {
           try {
+            // Extraer el token del encabezado
             const token = authHeader.split(' ').pop().trim();
-            console.log('Processing token:', token.substring(0, 10) + '...');
             
+            // Verificar el token y extraer los datos del usuario
             const decoded = jwt.verify(token, secret);
-            console.log('Token decoded successfully:', JSON.stringify(decoded));
             
+            // IMPORTANTE: Aquí está el cambio principal
+            // Asegúrate de que user sea exactamente decoded.data, no un objeto que lo contiene
             if (decoded && decoded.data) {
-              // Set user to just the data from the token
               user = decoded.data;
-              console.log('User extracted from token:', JSON.stringify(user));
+              console.log('User from token:', JSON.stringify(user));
               
-              // Double check that the ID exists
+              // Verifica explícitamente si el ID existe
               if (!user._id) {
-                console.warn('Warning: User ID is missing from token data');
+                console.warn('WARNING: User ID is missing from token data');
+              } else {
+                console.log('User ID from token:', user._id);
+                
+                // Verifica si el usuario existe en la base de datos
+                try {
+                  const dbUser = await User.findById(user._id);
+                  if (!dbUser) {
+                    console.warn(`WARNING: User with ID ${user._id} not found in database`);
+                  } else {
+                    console.log(`User ${dbUser.username} found in database`);
+                  }
+                } catch (dbErr) {
+                  console.error('Error checking user in database:', dbErr);
+                }
               }
-            } else {
-              console.warn('Warning: Token decoded but has invalid structure');
             }
-          } catch (error) {
-            console.error('Token verification failed:', error.message);
+          } catch (err) {
+            console.error('Token verification error:', err);
           }
         }
         
+        // Returnar el objeto context con el usuario
         return { user };
       }
     })
