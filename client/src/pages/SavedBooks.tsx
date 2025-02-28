@@ -1,144 +1,155 @@
-
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
-import { GET_ME } from '../queries'; // Asegúrate de que la ruta sea correcta
-import { REMOVE_BOOK } from '../mutations'; // Asegúrate de que la ruta sea correcta
+import { GET_ME } from '../queries';
+import { REMOVE_BOOK } from '../mutations';
 import Auth from '../utils/auth';
 import { Container, Card, Button, Row, Col } from 'react-bootstrap';
 
-// Define the SavedBook type
-interface SavedBook {
-  bookId: string;
-  title: string;
-  authors?: string[];
-  description?: string;
-  image?: string;
-}
-
 const SavedBooks = () => {
-  // Logs para depuración
-  console.log('Is user logged in?', Auth.loggedIn());
-  console.log('Token:', Auth.getToken());
+  const [userData, setUserData] = useState<UserData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   
-  // Usar useQuery para cargar los datos
-  const { loading, error, data, refetch } = useQuery(GET_ME, {
-    fetchPolicy: 'network-only',
-    onCompleted: (data) => console.log('Query completed:', data),
-    onError: (error) => console.error('Query error:', error)
+  const { data, loading: graphqlLoading, error: graphqlError } = useQuery(GET_ME, {
+    fetchPolicy: 'network-only', // Esto asegura que siempre obtengamos datos frescos
+    errorPolicy: 'all' // Esto permite continuar incluso con errores
   });
   
-  console.log('SavedBooks data:', data);
-  console.log('SavedBooks loading:', loading);
-  console.log('SavedBooks error:', error);
-  
-  // Configurar la mutación para eliminar libros
   const [removeBook] = useMutation(REMOVE_BOOK);
-
-  // Crear una función para eliminar un libro
-  const handleDeleteBook = async (bookId: string): Promise<boolean> => {
-    const token = Auth.loggedIn() ? Auth.getToken() : null;
-
-    if (!token) {
-      return false;
+  
+  // Fallback a REST API si GraphQL falla
+  useEffect(() => {
+    // Si GraphQL fue exitoso, usamos esos datos
+    if (data && data.me) {
+      setUserData(data.me);
+      setLoading(false);
+      return;
     }
+    
+    // Si GraphQL está cargando, esperamos
+    if (graphqlLoading) {
+      return;
+    }
+    
+    // Si no hay datos o hubo un error en GraphQL, intentamos con la API REST
+    const fetchBooks = async () => {
+      try {
+        if (!Auth.loggedIn()) {
+          setLoading(false);
+          setError(new Error('User not logged in'));
+          return;
+        }
+        
+        const token = Auth.getToken();
+        const response = await fetch('/api/user-books', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch books');
+        }
+        
+        const data = await response.json();
+        
+        if (data.success && data.user) {
+          setUserData(data.user);
+        } else {
+          throw new Error(data.message || 'Error loading user data');
+        }
+      } catch (err) {
+        console.error('Error fetching books via REST:', err);
+        setError(err as Error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchBooks();
+  }, [data, graphqlLoading, graphqlError]);
 
+  interface Book {
+    bookId: string;
+    image?: string;
+    title: string;
+    authors?: string[];
+    description?: string;
+  }
+
+  interface UserData {
+    savedBooks: Book[];
+  }
+
+  const handleDeleteBook = async (bookId: string) => {
     try {
       await removeBook({
-        variables: { bookId },
+        variables: { bookId }
       });
-
-      // Refrescar los datos después de eliminar
-      refetch();
-      return true;
+      
+      // Actualizar el estado local después de eliminar
+      setUserData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          savedBooks: prev.savedBooks.filter((book) => book.bookId !== bookId)
+        };
+      });
     } catch (err) {
       console.error(err);
-      return false;
     }
   };
 
-  // Si está cargando, mostrar mensaje
   if (loading) {
-    return <h2>Cargando...</h2>;
+    return <h2>CARGANDO...</h2>;
   }
-  
-  // Si hay error, mostrar mensaje
+
   if (error) {
-    console.error('Error fetching saved books:', error);
     return (
       <Container>
-        <h2>Error al cargar los libros guardados</h2>
+        <h2>Error cargando libros guardados</h2>
         <p>Error: {error.message}</p>
-        <p>Por favor, intenta cerrar sesión y volver a iniciarla.</p>
-        <Button onClick={() => Auth.logout()}>Cerrar sesión</Button>
-      </Container>
-    );
-  }
-  
-  // Verificar si hay datos
-  if (!data || !data.me) {
-    console.log('User data loaded:', data);
-    
-    // Si no hay datos pero el usuario está autenticado
-    if (Auth.loggedIn()) {
-      return (
-        <Container>
-          <h2>No se pudieron cargar tus libros guardados</h2>
-          <p>Tu token de autenticación parece ser válido, pero no pudimos encontrar tus datos.</p>
-          <p>Esto puede ocurrir si:</p>
-          <ul>
-            <li>Tu cuenta fue eliminada del servidor</li>
-            <li>Hay un problema con la autenticación en el servidor</li>
-            <li>El servidor no puede acceder a la base de datos</li>
-          </ul>
-          <Button variant="warning" onClick={() => Auth.logout()}>Cerrar sesión e intentar de nuevo</Button>
-        </Container>
-      );
-    }
-    
-    // Si el usuario no está autenticado
-    return (
-      <Container>
-        <h2>Por favor inicia sesión</h2>
-        <p>Debes iniciar sesión para ver tus libros guardados.</p>
-        <Button variant="primary" onClick={() => window.location.href = '/login'}>Ir a iniciar sesión</Button>
+        <Button onClick={() => Auth.logout()}>Cerrar sesión e intentar de nuevo</Button>
+        <Button onClick={() => window.location.reload()}>Recargar libros</Button>
       </Container>
     );
   }
 
-  const userData = data.me;
-  const savedBooks = userData.savedBooks || [];
-  
-  console.log('User data:', userData);
-  console.log('Saved books:', savedBooks);
-  
+  if (!userData) {
+    return (
+      <Container>
+        <h2>No se pudieron cargar tus libros guardados</h2>
+        <Button onClick={() => Auth.logout()}>Cerrar sesión e intentar de nuevo</Button>
+        <Button onClick={() => window.location.reload()}>Recargar libros</Button>
+      </Container>
+    );
+  }
+
   return (
     <Container>
-      <h2>{userData.username}'s libros guardados</h2>
-      <p>
-        {savedBooks.length
-          ? `Viendo ${savedBooks.length} libro(s) guardado(s):`
-          : 'Todavía no has guardado ningún libro!'}
-      </p>
-      
+      <h2>
+        {userData.savedBooks && userData.savedBooks.length
+          ? `Viendo ${userData.savedBooks.length} libros guardados:`
+          : 'Todavía no has guardado ningún libro'}
+      </h2>
       <Row>
-        {savedBooks.map((book: SavedBook) => {
-          return (
-            <Col md="4" key={book.bookId}>
-              <Card border='dark'>
-          {book.image && <Card.Img src={book.image} alt={`La portada para ${book.title}`} variant='top' />}
-          <Card.Body>
-            <Card.Title>{book.title}</Card.Title>
-            <p className='small'>Autores: {book.authors?.join(', ') || 'N/A'}</p>
-            <Card.Text>{book.description}</Card.Text>
-            <Button
-              className='btn-block btn-danger'
-              onClick={() => handleDeleteBook(book.bookId)}>
-              Eliminar este libro
-            </Button>
-          </Card.Body>
-              </Card>
-            </Col>
-          );
-        })}
+        {userData.savedBooks && userData.savedBooks.map((book) => (
+          <Col md="4" key={book.bookId}>
+            <Card border='dark'>
+              {book.image && <Card.Img src={book.image} alt={`La portada para ${book.title}`} variant='top' />}
+              <Card.Body>
+                <Card.Title>{book.title}</Card.Title>
+                <p className='small'>Autores: {book.authors?.join(', ') || 'N/A'}</p>
+                <Card.Text>{book.description}</Card.Text>
+                <Button
+                  className='btn-block btn-danger'
+                  onClick={() => handleDeleteBook(book.bookId)}>
+                  Eliminar este libro
+                </Button>
+              </Card.Body>
+            </Card>
+          </Col>
+        ))}
       </Row>
     </Container>
   );
