@@ -317,21 +317,41 @@ async function startServer() {
         });
       }
       
-      // Busca un usuario por email
-      const user = await User.findOne({ email });
+      // Buscar el usuario por email
+      let user = await User.findOne({ email });
       
+      // Si no existe, crearlo
       if (!user) {
+        console.log(`Creating user with email ${email}`);
+        
+        // Extraer nombre de usuario del email
+        const username = email.split('@')[0];
+        
+        // Crear el usuario
+        user = new User({
+          username,
+          email,
+          password: 'Password123!' // Esta contraseña será hasheada automáticamente
+        });
+        
+        await user.save();
+        
         return res.json({
-          success: false,
-          message: 'User not found',
-          email
+          success: true,
+          message: 'User created successfully',
+          user: {
+            _id: user._id,
+            username: user.username,
+            email: user.email
+          },
+          note: 'Password has been set to "Password123!"'
         });
       }
       
-      // Genera un token para ese usuario
+      // Generar un token para ese usuario
       const token = signToken(user);
       
-      // Verifica el token
+      // Verificar el token
       const decoded = jwt.verify(token, secret);
       
       return res.json({
@@ -344,7 +364,8 @@ async function startServer() {
         },
         token: token,
         decoded: decoded,
-        tokenData: decoded.data
+        tokenData: decoded.data,
+        loginUrl: `https://module-18.onrender.com/login?email=${email}&password=Password123!`
       });
     } catch (err) {
       return res.json({
