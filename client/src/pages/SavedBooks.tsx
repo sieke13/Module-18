@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { useQuery, useMutation } from '@apollo/client';
 import { GET_ME } from '../queries'; // Asegúrate de que la ruta sea correcta
 import { REMOVE_BOOK } from '../mutations'; // Asegúrate de que la ruta sea correcta
