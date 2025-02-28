@@ -1,6 +1,6 @@
 import { AuthenticationError } from 'apollo-server-express';
 import { User } from '../models/index.js';
-import { signToken } from '../utils/auth';
+import { signToken } from '../utils/auth.js';  // Añade la extensión .js
 
 export const resolvers = {
   Query: {
@@ -14,7 +14,7 @@ export const resolvers = {
       console.log('Looking for user with ID:', context.user._id);
       
       try {
-        const user = await User.findById(context.user._id);
+        const user = await User.findOne({ _id: context.user._id });  // Usa findOne en lugar de findById
         console.log('User found?', !!user);
         return user;
       } catch (err) {
@@ -46,7 +46,7 @@ export const resolvers = {
       const token = signToken(user);
       return { token, user };
     },
-    saveBook: async (parent, { bookData }, context) => {
+    saveBook: async (_, { bookData }, context) => {
       console.log('SaveBook mutation called');
       console.log('Context received:', JSON.stringify(context));
       console.log('Book data:', JSON.stringify(bookData));
@@ -56,16 +56,16 @@ export const resolvers = {
         throw new AuthenticationError('You need to be logged in!');
       }
       
-      if (!context.user._id) {
-        console.log('User ID is missing in context!');
-        throw new Error('User ID is missing in authentication context');
-      }
-      
-      console.log('Attempting to find user with ID:', context.user._id);
-      
       try {
+        // No verificamos context.user._id, lo usamos directamente
+        console.log('Attempting to find user with ID:', context.user._id);
+        
+        // Usar String() para asegurar que el ID sea una cadena
+        const userId = String(context.user._id);
+        
+        // Usar findOne en lugar de findById
         const updatedUser = await User.findOneAndUpdate(
-          { _id: context.user._id },
+          { _id: userId },
           { 
             $addToSet: { 
               savedBooks: {
@@ -78,11 +78,11 @@ export const resolvers = {
               }
             }
           },
-          { new: true, runValidators: true }
+          { new: true }
         );
         
         if (!updatedUser) {
-          console.log('User not found with ID:', context.user._id);
+          console.log('User not found with ID:', userId);
           throw new Error('User not found');
         }
         

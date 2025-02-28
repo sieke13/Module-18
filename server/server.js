@@ -234,6 +234,56 @@ async function startServer() {
     }
   });
 
+  // Añade este endpoint antes de configurar Apollo Server
+  app.get('/debug-user/:email', async (req, res) => {
+    try {
+      const { email } = req.params;
+      
+      if (!email) {
+        return res.json({
+          success: false,
+          message: 'Email parameter required'
+        });
+      }
+      
+      // Busca un usuario por email
+      const user = await User.findOne({ email });
+      
+      if (!user) {
+        return res.json({
+          success: false,
+          message: 'User not found',
+          email
+        });
+      }
+      
+      // Genera un token para ese usuario
+      const token = signToken(user);
+      
+      // Verifica el token
+      const decoded = jwt.verify(token, secret);
+      
+      return res.json({
+        success: true,
+        user: {
+          id: user._id.toString(),
+          username: user.username,
+          email: user.email,
+          bookCount: user.savedBooks?.length || 0
+        },
+        token: token,
+        decoded: decoded,
+        tokenData: decoded.data
+      });
+    } catch (err) {
+      return res.json({
+        success: false,
+        message: err.message,
+        stack: err.stack
+      });
+    }
+  });
+
   // Apply Apollo middleware with specific CORS options
   app.use(
     '/graphql',
@@ -247,48 +297,42 @@ async function startServer() {
       context: async ({ req }) => {
         // Obtener el token de autenticación
         const authHeader = req.headers.authorization;
-        let user = null;
+        console.log('Auth header:', authHeader ? 'Present' : 'Missing');
         
-        if (authHeader) {
-          try {
-            // Extraer el token del encabezado
-            const token = authHeader.split(' ').pop().trim();
-            
-            // Verificar el token y extraer los datos del usuario
-            const decoded = jwt.verify(token, secret);
-            
-            // IMPORTANTE: Aquí está el cambio principal
-            // Asegúrate de que user sea exactamente decoded.data, no un objeto que lo contiene
-            if (decoded && decoded.data) {
-              user = decoded.data;
-              console.log('User from token:', JSON.stringify(user));
-              
-              // Verifica explícitamente si el ID existe
-              if (!user._id) {
-                console.warn('WARNING: User ID is missing from token data');
-              } else {
-                console.log('User ID from token:', user._id);
-                
-                // Verifica si el usuario existe en la base de datos
-                try {
-                  const dbUser = await User.findById(user._id);
-                  if (!dbUser) {
-                    console.warn(`WARNING: User with ID ${user._id} not found in database`);
-                  } else {
-                    console.log(`User ${dbUser.username} found in database`);
-                  }
-                } catch (dbErr) {
-                  console.error('Error checking user in database:', dbErr);
-                }
-              }
-            }
-          } catch (err) {
-            console.error('Token verification error:', err);
-          }
+        // Si no hay token, retorna null
+        if (!authHeader) {
+          return { user: null };
         }
         
-        // Returnar el objeto context con el usuario
-        return { user };
+        try {
+          // Extraer el token del encabezado
+          const token = authHeader.split(' ').pop().trim();
+          console.log('Token extracted:', token ? 'Yes' : 'No');
+          
+          if (!token) {
+            return { user: null };
+          }
+          
+          // Verificar el token
+          const decoded = jwt.verify(token, secret);
+          console.log('Token verified, data present:', !!decoded?.data);
+          
+          // Si no hay datos o no hay ID, retornar null
+          if (!decoded || !decoded.data) {
+            return { user: null };
+          }
+          
+          // Asegurarse de que user._id esté presente
+          if (!decoded.data._id) {
+            console.log('Warning: User ID missing in token data');
+          }
+          
+          // Usar los datos del token para el contexto
+          return { user: decoded.data };
+        } catch (err) {
+          console.error('Error verifying token:', err);
+          return { user: null };
+        }
       }
     })
   );
