@@ -9,8 +9,11 @@ const resolvers = {
       }
   
       const user = await User.findOne({ _id: context.user._id }).populate('savedBooks');
+      console.log('User data from DB:', user); // Log the user data
+  
       if (user && user.savedBooks) {
         user.savedBooks = user.savedBooks.filter(book => book !== null); // Filter out null values
+        console.log('Filtered savedBooks:', user.savedBooks); // Log the filtered savedBooks
       }
   
       return user;
@@ -64,11 +67,15 @@ const resolvers = {
         link: bookData.link || '',
       };
     
-      return User.findByIdAndUpdate(
+      const updatedUser = await User.findByIdAndUpdate(
         context.user._id,
         { $addToSet: { savedBooks: validatedBookData } },
         { new: true, runValidators: true }
       );
+    
+      console.log('Updated user after saving book:', updatedUser); // Log the updated user
+    
+      return updatedUser;
     },
 
     removeBook: async (_: any, { bookId }: { bookId: string }, context: any) => {
@@ -78,13 +85,17 @@ const resolvers = {
     
       console.log('Removing book with ID:', bookId); // Log the book ID
     
-      return User.findByIdAndUpdate(
+      const updatedUser = await User.findByIdAndUpdate(
         context.user._id,
         { $pull: { savedBooks: { bookId } } },
         { new: true }
       );
-    },
-  },
+    
+      console.log('Updated user after removing book:', updatedUser); // Log the updated user
+    
+      return updatedUser;
+    }
+  }
 };
 
 export default resolvers;
