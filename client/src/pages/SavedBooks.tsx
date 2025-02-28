@@ -39,11 +39,11 @@ const SavedBooks = () => {
           setError(new Error('User not logged in'));
           return;
         }
-
-
-        // Opción 2 (para producción):
+        
         const token = Auth.getToken();
-        const response = await fetch('https://module-18.onrender.com/api/user-books', {
+        console.log('Fetching books with token:', token ? 'token exists' : 'no token');
+        
+        const response = await fetch(`${window.location.origin}/api/user-books`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Accept': 'application/json'
@@ -52,7 +52,8 @@ const SavedBooks = () => {
         
         const contentType = response.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
-          console.error('La respuesta no es JSON:', await response.text());
+          const textResponse = await response.text();
+          console.error('Response is not JSON:', textResponse.substring(0, 200));
           throw new Error(`Respuesta inesperada del servidor (${response.status}): No es JSON`);
         }
         
@@ -62,15 +63,18 @@ const SavedBooks = () => {
         }
         
         const data = await response.json();
+        console.log('API Books response:', data);
         
         if (data.success && data.user) {
+          console.log('Setting user data from API');
           setUserData(data.user);
         } else {
+          console.error('API returned success=false or no user:', data);
           throw new Error(data.message || 'Error loading user data');
         }
       } catch (err) {
         console.error('Error fetching books via REST:', err);
-        setError(err as Error);
+        setError(err instanceof Error ? err : new Error(String(err)));
       } finally {
         setLoading(false);
       }
@@ -78,6 +82,7 @@ const SavedBooks = () => {
     
     fetchBooks();
   }, [data, graphqlLoading, graphqlError]);
+
 
   interface Book {
     bookId: string;
