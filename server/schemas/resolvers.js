@@ -1,8 +1,8 @@
-const { AuthenticationError } = require('apollo-server-express');
-const { User } = require('../models');
-const { signToken } = require('../utils/auth');
+import { AuthenticationError } from 'apollo-server-express';
+import { User } from '../models/index.js';
+import { signToken } from '../utils/auth';
 
-const resolvers = {
+export const resolvers = {
   Query: {
     me: async (parent, args, context) => {
       console.log('ME query context:', context.user ? 'User found' : 'No user in context');
@@ -52,20 +52,30 @@ const resolvers = {
     },
     saveBook: async (parent, { bookData }, context) => {
       console.log('SaveBook mutation called');
-      console.log('Context:', context);
-      console.log('User in context:', context.user);
+      console.log('Context user:', context.user);
+      console.log('Book data:', bookData);
       
       // Check if user is authenticated
       if (!context.user) {
-        console.log('No authenticated user found');
+        console.log('No user found in context');
         throw new AuthenticationError('You need to be logged in!');
       }
       
       try {
         console.log(`Finding user with ID: ${context.user._id}`);
         
-        const updatedUser = await User.findOneAndUpdate(
-          { _id: context.user._id },
+        // First check if user exists
+        const existingUser = await User.findById(context.user._id);
+        if (!existingUser) {
+          console.log(`User not found with ID: ${context.user._id}`);
+          throw new Error('User not found');
+        }
+        
+        console.log('User found, updating with new book');
+        
+        // Now update with the new book
+        const updatedUser = await User.findByIdAndUpdate(
+          context.user._id,
           { 
             $addToSet: { 
               savedBooks: {
@@ -80,11 +90,6 @@ const resolvers = {
           },
           { new: true }
         );
-        
-        if (!updatedUser) {
-          console.log(`No user found with ID: ${context.user._id}`);
-          throw new Error('User not found');
-        }
         
         console.log('Book saved successfully');
         return updatedUser;
@@ -109,4 +114,4 @@ const resolvers = {
   },
 };
 
-module.exports = resolvers;
+export default resolvers;
