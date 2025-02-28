@@ -7,7 +7,7 @@ const db = require('./config/connection');
 const { typeDefs, resolvers } = require('./schemas');
 const { authMiddleware } = require('./utils/auth');
 const jwt = require('jsonwebtoken');
-const secret = 'your_secret_key';
+const secret = process.env.JWT_SECRET_KEY || '25c390a9e5dbadc7ef5d650272ff3fcf63819f3f012106bf68606b3d4e849578';
 const User = require('./models/User');
 
 const app = express();

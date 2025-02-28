@@ -18,13 +18,18 @@ export const resolvers = {
         console.log('Looking for user with ID:', context.user._id);
         
         // Usar findOne en lugar de findById
-        const user = await User.findOne({ _id: context.user._id });
+        const user = await User.findOne({ _id: context.user._id }).populate('savedBooks');
         
         // Log del resultado
         if (!user) {
           console.log(`User not found with ID ${context.user._id}`);
         } else {
           console.log(`User found: ${user.username}`);
+        }
+        
+        console.log('User data from DB:', user); // Log the user data
+        if (user && user.savedBooks) {
+          user.savedBooks = user.savedBooks.filter(book => book !== null); // Filter out null values
         }
         
         return user;
