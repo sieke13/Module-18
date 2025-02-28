@@ -6,19 +6,11 @@ import { signToken, AuthenticationError } from '../services/auth.js';
 const resolvers = {
   Query: {
     me: async (_: any, __: any, context: any) => {
-      if (!context.user) {
-        return null;
+      if (context.user) {
+        const user = await User.findById(context.user._id).populate('savedBooks');
+        return user;
       }
-  
-      const user = await User.findOne({ _id: context.user._id }).populate('savedBooks');
-      console.log('User data from DB:', user); // Log the user data
-  
-      if (user && user.savedBooks) {
-        user.savedBooks = user.savedBooks.filter(book => book !== null); // Filter out null values
-        console.log('Filtered savedBooks:', user.savedBooks); // Log the filtered savedBooks
-      }
-  
-      return user;
+      throw new AuthenticationError('Not logged in');
     },
   },
   Mutation: {
@@ -146,4 +138,4 @@ const resolvers = {
   }
 };
 
-export default resolvers;
+module.exports = resolvers;

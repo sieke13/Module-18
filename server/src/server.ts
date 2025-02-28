@@ -4,12 +4,43 @@ import path from 'node:path';
 import { fileURLToPath } from 'url';
 import { ApolloServer } from '@apollo/server';
 import { expressMiddleware } from '@apollo/server/express4';
-//port bodyParser from 'body-parser';
+import cors from 'cors';
 import dotenv from 'dotenv';
 
 import connectDB from './config/connection.js'; 
-import { typeDefs, resolvers } from './schemas/index.js';
-import { authenticateToken } from './services/auth.js';
+import typeDefs from './schemas/typeDefs';
+
+const jwt = require('jsonwebtoken');
+
+const secret = 'mysecretsshhhhh';
+const expiration = '2h';
+
+module.exports = {
+  authMiddleware: function ({ req }: { req: Request }) {
+    let token = req.headers.authorization || '';
+
+    if (token) {
+      token = token.split(' ').pop()?.trim() || '';
+    }
+
+    if (!token) {
+      return req;
+    }
+
+    try {
+      const { data } = jwt.verify(token, secret, { maxAge: expiration });
+      req.user = data;
+    } catch {
+      console.log('Invalid token');
+    }
+
+    return req;
+  },
+  signToken: function ({ username, email, _id }: { username: string; email: string; _id: string }) {
+    const payload = { username, email, _id };
+    return jwt.sign({ data: payload }, secret, { expiresIn: expiration });
+  },
+};
 
 // ✅ Manually Define __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -25,6 +56,20 @@ const app = express();
 await connectDB();
 
 // ✅ Initialize Apollo Server
+const resolvers = {
+  Query: {
+    // your query resolvers
+  },
+  Mutation: {
+    // your mutation resolvers
+  },
+};
+
+export { resolvers };
+
+// Use the authMiddleware from this file since it's already defined above
+const { authMiddleware } = module.exports;
+
 const server = new ApolloServer({
   typeDefs,
   resolvers,
@@ -33,29 +78,17 @@ const server = new ApolloServer({
 const startApolloServer = async () => {
   await server.start();
 
-  //app.use(cors());
   app.use(express.json());
   app.use(express.urlencoded({ extended: false }));
 
   // ✅ Apply Apollo GraphQL Middleware with Authentication
-  app.use('/graphql', expressMiddleware(server, {
-    context: async ({ req }) => {
-      const authHeader = req.headers.authorization;
-      let user = null;
-
-      if (authHeader) {
-        try {
-          user = authenticateToken(req); // Only authenticate if a token is provided
-          console.log("User: ", user);
-        } catch (error) {
-          console.error("Authentication error:", error);
-          // Handle the error as needed (e.g., log it, return null, etc.)
-        }
-      }
-
-      return { user }; // Allows unauthenticated access for login & register
-    },
-  }));
+  app.use(
+    '/graphql',
+    cors(),
+    expressMiddleware(server, {
+      context: authMiddleware
+    })
+  );
 
   // ✅ Serve Static Assets in Production
   if (process.env.NODE_ENV === 'production') {

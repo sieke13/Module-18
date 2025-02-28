@@ -14,7 +14,7 @@ interface Book {
 }
 
 const SavedBooks = () => {
-  const [, setError] = useState<Error | null>(null);
+  const [,setError] = useState<Error | null>(null);
 
   // Usar solo GraphQL para obtener datos
   const { data, loading, error: graphqlError, refetch } = useQuery(GET_ME, {
@@ -59,6 +59,8 @@ const SavedBooks = () => {
 
   // Si hay error o no hay datos, mostrar mensaje apropiado
   if (graphqlError || !data || !data.me) {
+    console.error('Error de GraphQL:', graphqlError);
+    console.error('Datos recibidos:', data);
     return (
       <Container>
         <h2>No se pudieron cargar tus libros guardados</h2>
