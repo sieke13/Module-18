@@ -52,8 +52,8 @@ export const resolvers = {
     },
     saveBook: async (parent, { bookData }, context) => {
       console.log('SaveBook mutation called');
-      console.log('Context user:', context.user);
-      console.log('Book data:', bookData);
+      console.log('Context:', JSON.stringify(context));
+      console.log('Book data:', JSON.stringify(bookData));
       
       // Check if user is authenticated
       if (!context.user) {
@@ -64,35 +64,56 @@ export const resolvers = {
       try {
         console.log(`Finding user with ID: ${context.user._id}`);
         
-        // First check if user exists
+        // First try findById to check if the user exists
         const existingUser = await User.findById(context.user._id);
+        
         if (!existingUser) {
           console.log(`User not found with ID: ${context.user._id}`);
-          throw new Error('User not found');
-        }
-        
-        console.log('User found, updating with new book');
-        
-        // Now update with the new book
-        const updatedUser = await User.findByIdAndUpdate(
-          context.user._id,
-          { 
-            $addToSet: { 
-              savedBooks: {
+          
+          // Try an alternate approach - look up by email or username
+          if (context.user.email) {
+            console.log(`Trying to find user by email: ${context.user.email}`);
+            const userByEmail = await User.findOne({ email: context.user.email });
+            
+            if (userByEmail) {
+              console.log('User found by email instead of ID');
+              
+              // Save the book to this user instead
+              userByEmail.savedBooks.push({
                 bookId: bookData.bookId,
                 authors: bookData.authors || [],
                 description: bookData.description || '',
                 title: bookData.title,
                 image: bookData.image || '',
                 link: bookData.link || ''
-              } 
-            } 
-          },
-          { new: true }
-        );
+              });
+              
+              await userByEmail.save();
+              console.log('Book saved successfully via email lookup');
+              return userByEmail;
+            }
+          }
+          
+          throw new Error('User not found');
+        }
         
-        console.log('Book saved successfully');
-        return updatedUser;
+        console.log('User found, adding book');
+        
+        // Add the book to the user's savedBooks
+        existingUser.savedBooks.push({
+          bookId: bookData.bookId,
+          authors: bookData.authors || [],
+          description: bookData.description || '',
+          title: bookData.title,
+          image: bookData.image || '',
+          link: bookData.link || ''
+        });
+        
+        // Save the updated user
+        await existingUser.save();
+        
+        console.log('Book saved successfully via standard method');
+        return existingUser;
       } catch (err) {
         console.error('Error in saveBook resolver:', err);
         throw new Error(`Failed to save book: ${err.message}`);
