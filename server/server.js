@@ -5,7 +5,7 @@ const path = require('path');
 const cors = require('cors');
 const db = require('./config/connection');
 const { typeDefs, resolvers } = require('./schemas');
-const { authMiddleware } = require('./utils/auth');
+const { authMiddleware, signToken } = require('./utils/auth');
 const jwt = require('jsonwebtoken');
 const secret = process.env.JWT_SECRET_KEY || '25c390a9e5dbadc7ef5d650272ff3fcf63819f3f012106bf68606b3d4e849578';
 const User = require('./models/User');
@@ -17,6 +17,77 @@ const PORT = process.env.PORT || 3001;
 app.use(cors()); // Enable CORS for all routes
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+
+// Añade aquí tu endpoint de debug-user
+app.get('/debug-user/:email', async (req, res) => {
+  try {
+    const { email } = req.params;
+    
+    if (!email) {
+      return res.json({
+        success: false,
+        message: 'Email parameter required'
+      });
+    }
+    
+    // Buscar el usuario por email
+    let user = await User.findOne({ email });
+    
+    // Si no existe, crearlo
+    if (!user) {
+      console.log(`Creating user with email ${email}`);
+      
+      // Extraer nombre de usuario del email
+      const username = email.split('@')[0];
+      
+      // Crear el usuario
+      user = new User({
+        username,
+        email,
+        password: 'Password123!' // Esta contraseña será hasheada automáticamente
+      });
+      
+      await user.save();
+      
+      return res.json({
+        success: true,
+        message: 'User created successfully',
+        user: {
+          _id: user._id,
+          username: user.username,
+          email: user.email
+        },
+        note: 'Password has been set to "Password123!"'
+      });
+    }
+    
+    // Generar un token para ese usuario
+    const token = signToken(user);
+    
+    // Verificar el token
+    const decoded = jwt.verify(token, secret);
+    
+    return res.json({
+      success: true,
+      user: {
+        id: user._id.toString(),
+        username: user.username,
+        email: user.email,
+        bookCount: user.savedBooks?.length || 0
+      },
+      token: token,
+      decoded: decoded,
+      tokenData: decoded.data,
+      loginUrl: `https://module-18.onrender.com/login?email=${email}&password=Password123!`
+    });
+  } catch (err) {
+    return res.json({
+      success: false,
+      message: err.message,
+      stack: err.stack
+    });
+  }
+});
 
 const server = new ApolloServer({
   typeDefs,

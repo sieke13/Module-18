@@ -14,17 +14,34 @@ export const resolvers = {
       }
       
       try {
-        // Buscar el usuario por ID
+        // Buscar el usuario por ID o por email como fallback
         console.log('Looking for user with ID:', context.user._id);
         
-        // Usar findOne en lugar de findById
-        const user = await User.findOne({ _id: context.user._id }).populate('savedBooks');
+        // Intentar por ID primero
+        let user = await User.findOne({ _id: context.user._id }).populate('savedBooks');
+        
+        // Si no se encuentra por ID, intentar por email
+        if (!user && context.user.email) {
+          console.log('User not found by ID, trying by email:', context.user.email);
+          user = await User.findOne({ email: context.user.email }).populate('savedBooks');
+        }
+        
+        // Si todavía no se encuentra, crear un nuevo usuario
+        if (!user && context.user.username && context.user.email) {
+          console.log('User not found, creating new user with data from token');
+          user = await User.create({
+            username: context.user.username,
+            email: context.user.email,
+            password: 'temporaryPassword123!' // Este password será inaccesible sin hash
+          });
+        }
         
         // Log del resultado
         if (!user) {
-          console.log(`User not found with ID ${context.user._id}`);
+          console.log(`User not found with ID ${context.user._id} or email ${context.user.email}`);
+          return null;
         } else {
-          console.log(`User found: ${user.username}`);
+          console.log(`User found or created: ${user.username}`);
         }
         
         console.log('User data from DB:', user); // Log the user data
