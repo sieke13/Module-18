@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
 import { GET_ME } from '../queries';
 import { REMOVE_BOOK } from '../mutations';
@@ -46,6 +46,12 @@ const SavedBooks = () => {
   const handleRefresh = () => {
     refetch();
   };
+
+  useEffect(() => {
+    if (data && data.me) {
+      console.log('Datos de GraphQL recibidos:', data.me);
+    }
+  }, [data]);
 
   if (loading) {
     return <h2>CARGANDO...</h2>;
