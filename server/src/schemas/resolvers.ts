@@ -47,35 +47,58 @@ const resolvers = {
       return { token, user };
     },
     saveBook: async (_: any, { bookData }: { bookData: any }, context: any) => {
+      console.log('SaveBook mutation called');
+      console.log('Context user:', context.user);
+      console.log('Book data:', bookData);
+      
+      // Check if user is authenticated
       if (!context.user) {
-        throw new AuthenticationError('Not logged in');
+        console.log('No user in context');
+        throw new AuthenticationError('You need to be logged in!');
       }
     
-      console.log('Book data received:', bookData); // Log the book data
-    
-      if (!bookData || !bookData.bookId) {
-        throw new Error('Invalid book data');
+      try {
+        // Make sure all required fields are present
+        if (!bookData.bookId || !bookData.title) {
+          console.log('Missing required book fields');
+          throw new Error('Book data is missing required fields');
+        }
+        
+        // Find the user by ID
+        const user = await User.findById(context.user._id);
+        
+        if (!user) {
+          console.log('User not found with ID:', context.user._id);
+          throw new Error('User not found');
+        }
+        
+        // Carefully construct the book object with all fields to match schema
+        const bookToSave = {
+          bookId: bookData.bookId,
+          authors: Array.isArray(bookData.authors) ? bookData.authors : [], 
+          description: bookData.description || '',
+          title: bookData.title,
+          image: bookData.image || '',
+          link: bookData.link || ''
+        };
+        
+        // Update user with new book
+        if (!user.savedBooks) {
+          user.savedBooks = [];
+        }
+        user.savedBooks.push(bookToSave);
+        await user.save();
+        
+        console.log('Book saved successfully');
+        return user;
+      } catch (err) {
+        console.error('Error in saveBook resolver:', err);
+        if (err instanceof Error) {
+          throw new Error(`Failed to save book: ${err.message}`);
+        } else {
+          throw new Error('Failed to save book due to an unknown error');
+        }
       }
-    
-      // Ensure required fields are present
-      const validatedBookData = {
-        bookId: bookData.bookId,
-        authors: bookData.authors || ['No author to display'],
-        title: bookData.title || 'No title',
-        description: bookData.description || '', // Ensure description is not undefined
-        image: bookData.image || '',
-        link: bookData.link || '',
-      };
-    
-      const updatedUser = await User.findByIdAndUpdate(
-        context.user._id,
-        { $addToSet: { savedBooks: validatedBookData } },
-        { new: true, runValidators: true }
-      );
-    
-      console.log('Updated user after saving book:', updatedUser); // Log the updated user
-    
-      return updatedUser;
     },
 
     removeBook: async (_: any, { bookId }: { bookId: string }, context: any) => {

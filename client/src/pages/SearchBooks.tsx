@@ -80,10 +80,20 @@ const SearchBooks = () => {
       return;
     }
   
+    // Get token
+    const token = Auth.loggedIn() ? Auth.getToken() : null;
+  
+    if (!token) {
+      console.log('No token found - user not logged in');
+      return false;
+    }
+  
     try {
       const { data, errors } = await saveBook({
         variables: { bookData: bookToSave },
       });
+  
+      console.log('GraphQL response:', { data, errors });
   
       if (errors) {
         console.error('GraphQL errors:', errors);
@@ -99,6 +109,22 @@ const SearchBooks = () => {
       console.log('Book saved successfully:', data.saveBook);
     } catch (err) {
       console.error('Error saving book:', err);
+      if (err instanceof Error) {
+        console.error('Error message:', err.message);
+        console.error('Error stack:', err.stack);
+        
+        // Apollo Error specific properties
+        const apolloError = err as any;
+        if (apolloError.graphQLErrors?.length) {
+          console.error('GraphQL Errors:', apolloError.graphQLErrors);
+        }
+        if (apolloError.networkError) {
+          console.error('Network Error:', apolloError.networkError);
+          if (apolloError.networkError.result) {
+            console.error('Network Error Details:', apolloError.networkError.result);
+          }
+        }
+      }
     }
   };
 
