@@ -87,12 +87,16 @@ const SearchBooks = () => {
   
       if (errors) {
         console.error('GraphQL errors:', errors);
+        return;
       }
   
-      if (data && data.saveBook) {
-        setSavedBookIds([...savedBookIds, bookToSave.bookId]);
-        console.log('Book saved successfully');
+      if (!data || !data.saveBook) {
+        console.error('Failed to save book - no data returned');
+        return;
       }
+  
+      setSavedBookIds([...savedBookIds, bookToSave.bookId]);
+      console.log('Book saved successfully:', data.saveBook);
     } catch (err) {
       console.error('Error saving book:', err);
     }
