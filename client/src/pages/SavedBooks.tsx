@@ -39,16 +39,26 @@ const SavedBooks = () => {
           setError(new Error('User not logged in'));
           return;
         }
-        
+
+
+        // Opción 2 (para producción):
         const token = Auth.getToken();
-        const response = await fetch('/api/user-books', {
+        const response = await fetch('https://module-18.onrender.com/api/user-books', {
           headers: {
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
           }
         });
         
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          console.error('La respuesta no es JSON:', await response.text());
+          throw new Error(`Respuesta inesperada del servidor (${response.status}): No es JSON`);
+        }
+        
         if (!response.ok) {
-          throw new Error('Failed to fetch books');
+          const errorData = await response.json();
+          throw new Error(errorData.message || `Error del servidor: ${response.status}`);
         }
         
         const data = await response.json();
@@ -151,6 +161,20 @@ const SavedBooks = () => {
           </Col>
         ))}
       </Row>
+      <Button 
+        variant="outline-info"
+        onClick={() => {
+          const profile = Auth.getProfile() as { data?: { email: string } } | null;
+          if (profile && profile.data && profile.data.email) {
+            const debugUrl = `/debug-user/${profile.data.email}`;
+            window.open(debugUrl, '_blank');
+          } else {
+            console.error('No se pudo obtener el email del perfil');
+          }
+        }}
+      >
+        Ver datos de usuario
+      </Button>
     </Container>
   );
 };

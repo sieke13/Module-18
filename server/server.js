@@ -461,6 +461,27 @@ async function startServer() {
     }
   });
 
+  app.get('/api/user-books', async (req, res) => {
+    try {
+      // Obtener token de autorización
+      const authHeader = req.headers.authorization;
+      if (!authHeader) {
+        return res.status(401).json({
+          success: false,
+          message: 'No authorization token provided'
+        });
+      }
+      
+      // Resto del código...
+    } catch (err) {
+      return res.status(500).json({
+        success: false,
+        message: 'Server error',
+        error: err.message
+      });
+    }
+  });
+
   if (process.env.NODE_ENV === 'production') {
     app.use(express.static(path.join(__dirname, '../client/dist')));
     app.get('*', (req, res) => {
