@@ -160,6 +160,80 @@ async function startServer() {
     }
   });
 
+  // Añade este endpoint antes del middleware de Apollo
+  app.get('/debug-token', async (req, res) => {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader) {
+      return res.json({ success: false, message: 'No auth header provided' });
+    }
+    
+    try {
+      const token = authHeader.split(' ').pop().trim();
+      
+      // Importa jwt directamente
+      const jwt = await import('jsonwebtoken');
+      const secret = process.env.JWT_SECRET_KEY || '25c390a9e5dbadc7ef5d650272ff3fcf63819f3f012106bf68606b3d4e849578';
+      
+      const decoded = jwt.default.verify(token, secret);
+      const userData = decoded.data;
+      
+      // Verifica la estructura del token
+      if (!userData || !userData._id) {
+        return res.json({ 
+          success: false, 
+          message: 'Token valid but missing user data or ID',
+          decoded
+        });
+      }
+      
+      // Importa el modelo User
+      const { default: User } = await import('./dist/models/User.js');
+      
+      console.log('Trying to find user with ID:', userData._id);
+      
+      // Intenta encontrar al usuario
+      const user = await User.findById(userData._id);
+      
+      if (!user) {
+        // Si no se encuentra por ID, intenta buscar por email
+        const userByEmail = userData.email ? await User.findOne({ email: userData.email }) : null;
+        
+        if (userByEmail) {
+          return res.json({
+            success: true,
+            message: 'User found by email, not by ID',
+            tokenId: userData._id,
+            actualUserId: userByEmail._id.toString(),
+            email: userData.email,
+            username: userByEmail.username
+          });
+        }
+        
+        return res.json({
+          success: false,
+          message: 'User not found in database',
+          tokenData: userData
+        });
+      }
+      
+      return res.json({
+        success: true,
+        message: 'User found in database',
+        userId: user._id.toString(),
+        username: user.username,
+        email: user.email,
+        bookCount: user.savedBooks?.length || 0
+      });
+    } catch (err) {
+      return res.json({
+        success: false,
+        message: err.message,
+        stack: err.stack
+      });
+    }
+  });
+
   // Apply Apollo middleware with specific CORS options
   app.use(
     '/graphql',
