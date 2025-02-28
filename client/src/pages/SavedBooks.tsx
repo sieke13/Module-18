@@ -13,11 +13,10 @@ interface Book {
   description: string;
 }
 
-
 const SavedBooks = () => {
+  const [, setError] = useState<Error | null>(null);
 
   // Usar solo GraphQL para obtener datos
-  const [, setError] = useState<Error | null>(null);
   const { data, loading, error: graphqlError, refetch } = useQuery(GET_ME, {
     fetchPolicy: 'network-only', // Asegura datos frescos
     errorPolicy: 'all' // Permite continuar con errores
@@ -29,9 +28,6 @@ const SavedBooks = () => {
       refetch();
     }
   });
-
-
-
 
   const handleDeleteBook = async (bookId: string) => {
     try {
