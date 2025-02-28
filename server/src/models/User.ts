@@ -1,5 +1,6 @@
 import { Schema, model, Document, ObjectId } from 'mongoose';
 import bcrypt from 'bcrypt';
+import { bookSchema } from './Book.js';
 
 export interface IUser extends Document {
   _id: ObjectId; 
@@ -16,7 +17,7 @@ export interface IUser extends Document {
   }>;
   isCorrectPassword(password: string): Promise<boolean>;
 }
-
+/*
 const bookSchema = new Schema({
   bookId: {
     type: String,
@@ -41,7 +42,7 @@ const bookSchema = new Schema({
     type: String,
   },
 });
-
+*/
 const userSchema = new Schema<IUser>(
   {
     username: {
