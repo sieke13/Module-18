@@ -83,22 +83,3 @@ export const GET_ME = gql`
     }
   }
 `;
-
-// Mutación para eliminar un libro
-export const REMOVE_BOOK = gql`
-  mutation removeBook($bookId: String!) {
-    removeBook(bookId: $bookId) {
-      _id
-      username
-      email
-      savedBooks {
-        bookId
-        authors
-        description
-        title
-        image
-        link
-      }
-    }
-  }
-`;
