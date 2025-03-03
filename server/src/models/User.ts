@@ -1,32 +1,31 @@
 import { Schema, model, Document, ObjectId } from 'mongoose';
 import bcrypt from 'bcrypt';
+// import { bookSchema } from './Book.js';
+
+export interface IBook {
+  bookId: string;
+  authors?: string[];
+  description?: string;
+  title: string;
+  image?: string;
+  link?: string;
+}
 
 export interface IUser extends Document {
   _id: ObjectId; 
   username: string;
   email: string;
   password: string;
-  savedBooks?: Array<{
-    bookId: string;
-    authors?: string[];
-    description?: string;
-    title: string;
-    image?: string;
-    link?: string;
-  }>;
+  savedBooks?: IBook[];
   isCorrectPassword(password: string): Promise<boolean>;
 }
 
-const bookSchema = new Schema({
+const bookSchema = new Schema<IBook>({
   bookId: {
     type: String,
     required: true,
   },
-  authors: [
-    {
-      type: String,
-    },
-  ],
+  authors: [String],
   description: {
     type: String,
   },

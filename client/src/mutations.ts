@@ -31,8 +31,44 @@ export const ADD_USER = gql`
 
 // Mutación para guardar un libro
 export const SAVE_BOOK = gql`
-  mutation saveBook($bookData: BookInput!) {
-    saveBook(bookData: $bookData) {
+  mutation saveBook($bookData: BookInput!, $userEmail: String) {
+    saveBook(bookData: $bookData, userEmail: $userEmail) {
+      _id
+      username
+      email
+      savedBooks {
+        bookId
+        title
+        authors
+        description
+        image
+        link
+      }
+    }
+  }
+`;
+
+export const REMOVE_BOOK = gql`
+  mutation removeBook($bookId: String!) {
+    removeBook(bookId: $bookId) {
+      _id
+      username
+      email
+      savedBooks {
+        bookId
+        authors
+        description
+        title
+        image
+        link
+      }
+    }
+  }
+`;
+
+export const GET_ME = gql`
+  query me {
+    me {
       _id
       username
       email

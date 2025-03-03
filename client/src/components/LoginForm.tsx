@@ -5,11 +5,7 @@ import { LOGIN_USER } from '../mutations';
 
 import Auth from '../utils/auth';
 
-interface LoginFormProps {
-  handleModalClose: () => void;
-}
-
-const LoginForm: React.FC<LoginFormProps> = ({ handleModalClose }) => {
+const LoginForm: React.FC = () => {
   const [userFormData, setUserFormData] = useState({ email: '', password: '' });
   const [showAlert, setShowAlert] = useState(false);
 
@@ -28,14 +24,21 @@ const LoginForm: React.FC<LoginFormProps> = ({ handleModalClose }) => {
         variables: { ...userFormData }
       });
 
-      Auth.login(data.login.token);
-      handleModalClose();
+      console.log('Login response:', data);
+
+      if (data.login.token) {
+        Auth.login(data.login.token);
+        console.log('Token saved after login');
+      }
     } catch (err) {
-      console.error(err);
+      console.error('Login error:', err);
       setShowAlert(true);
     }
 
-    setUserFormData({ email: '', password: '' });
+    setUserFormData({
+      email: '',
+      password: ''
+    });
   };
 
   return (

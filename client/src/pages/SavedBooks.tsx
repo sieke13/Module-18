@@ -1,111 +1,152 @@
-import { useQuery, useMutation, gql } from '@apollo/client';
-import { Container, Card, Button, Row, Col } from 'react-bootstrap';
+import { useState, useEffect } from 'react';
+import { useQuery, useMutation } from '@apollo/client';
 import { GET_ME } from '../queries';
-import Auth from '../utils/auth.js';
-import { removeBookId } from '../utils/localStorage.js';
-import type { Book } from '../models/Book.js';
+import { REMOVE_BOOK } from '../mutations';
+import Auth from '../utils/auth';
+import { Container, Card, Button, Row, Col } from 'react-bootstrap';
 
-export const REMOVE_BOOK = gql`
-  mutation removeBook($bookId: ID!) {
-    removeBook(bookId: $bookId) {
-      _id
-      username
-      email
-      savedBooks {
-        bookId
-        title
-        authors
-        description
-        image
-        link
-      }
-    }
-  }
-`;
+interface Book {
+  bookId: string;
+  image?: string;
+  title: string;
+  authors?: string[];
+  description: string;
+}
 
 const SavedBooks = () => {
-  const { loading, data } = useQuery(GET_ME);
-  const [removeBook] = useMutation(REMOVE_BOOK);
+  const [,setError] = useState<Error | null>(null);
 
-  const userData = data?.me || {
-    username: '',
-    email: '',
-    password: '',
-    savedBooks: [],
-  };
+  // Usar solo GraphQL para obtener datos
+  const { data, loading, error: graphqlError, refetch } = useQuery(GET_ME, {
+    fetchPolicy: 'network-only', // Asegura datos frescos
+    errorPolicy: 'all' // Permite continuar con errores
+  });
+  
+  const [removeBook] = useMutation(REMOVE_BOOK, {
+    onCompleted: () => {
+      // Refrescar datos después de eliminar un libro
+      refetch();
+    }
+  });
 
   const handleDeleteBook = async (bookId: string) => {
-    const token = Auth.loggedIn() ? Auth.getToken() : null;
-
-    if (!token) {
-      return false;
-    }
-
     try {
       await removeBook({
-        variables: { bookId },
+        variables: { bookId }
       });
-
-      // upon success, remove book's id from localStorage
-      removeBookId(bookId);
+      // No es necesario actualizar manualmente el estado
+      // ya que refetch() lo hará
     } catch (err) {
-      console.error(err);
+      console.error('Error al eliminar libro:', err);
+      setError(err instanceof Error ? err : new Error('Error desconocido al eliminar libro'));
     }
   };
+  
+  // Función para recargar datos manualmente
+  const handleRefresh = () => {
+    refetch();
+  };
+
+  useEffect(() => {
+    if (data && data.me) {
+      console.log('Datos de GraphQL recibidos:', data.me);
+    }
+  }, [data]);
 
   if (loading) {
-    return <h2>LOADING...</h2>;
+    return <h2>CARGANDO...</h2>;
   }
 
-  return (
-    <>
-      <div className='text-light bg-dark p-5'>
-        <Container>
-          {userData.username ? (
-            <h1>Viewing {userData.username}'s saved books!</h1>
-          ) : (
-            <h1>Viewing saved books!</h1>
-          )}
-        </Container>
-      </div>
+  // Si hay error o no hay datos, mostrar mensaje apropiado
+  if (graphqlError || !data || !data.me) {
+    console.error('Error de GraphQL:', graphqlError);
+    console.error('Datos recibidos:', data);
+    return (
       <Container>
-        <h2 className='pt-5'>
-          {userData.savedBooks.length
-            ? `Viewing ${userData.savedBooks.length} saved ${
-                userData.savedBooks.length === 1 ? 'book' : 'books'
-              }:`
-            : 'You have no saved books!'}
-        </h2>
-        <Row>
-          {userData.savedBooks.map((book: Book) => {
-            return (
-              <Col md='4' key={book.bookId}>
-                <Card border='dark'>
-                  {book.image ? (
-                    <Card.Img
-                      src={book.image}
-                      alt={`The cover for ${book.title}`}
-                      variant='top'
-                    />
-                  ) : null}
-                  <Card.Body>
-                    <Card.Title>{book.title}</Card.Title>
-                    <p className='small'>Authors: {book.authors}</p>
-                    <Card.Text>{book.description}</Card.Text>
-                    <Button
-                      className='btn-block btn-danger'
-                      onClick={() => handleDeleteBook(book.bookId)}
-                    >
-                      Delete this Book!
-                    </Button>
-                  </Card.Body>
-                </Card>
-              </Col>
-            );
-          })}
-        </Row>
+        <h2>No se pudieron cargar tus libros guardados</h2>
+        {graphqlError && <p>Error: {graphqlError.message}</p>}
+        <div className="d-flex flex-wrap gap-2 mt-3">
+          <Button variant="warning" onClick={() => Auth.logout()}>
+            Cerrar sesión e intentar de nuevo
+          </Button>
+          <Button variant="primary" onClick={handleRefresh}>
+            Recargar datos
+          </Button>
+          <Button 
+            variant="outline-info"
+            onClick={() => {
+              const profile = Auth.getProfile() as { data?: { email: string } } | null;
+              if (profile?.data?.email) {
+                const debugUrl = `${window.location.origin}/debug-user/${profile.data.email}`;
+                window.location.href = debugUrl;
+              } else {
+                alert('No se pudo obtener el email del perfil');
+              }
+            }}
+          >
+            Ver datos de usuario
+          </Button>
+        </div>
       </Container>
-    </>
+    );
+  }
+
+  const userData = data.me;
+
+  return (
+    <Container>
+      <Row>
+        {userData.savedBooks && userData.savedBooks.length > 0 ? (
+          userData.savedBooks.map((book: Book) => (
+            <Col md="4" key={book.bookId} className="mb-4">
+              <Card border='dark' className="h-100">
+                {book.image && <Card.Img src={book.image} alt={`La portada para ${book.title}`} variant='top' />}
+                <Card.Body>
+                  <Card.Title>{book.title}</Card.Title>
+                  <p className='small'>Autores: {book.authors?.join(', ') || 'N/A'}</p>
+                  <Card.Text>{book.description}</Card.Text>
+                  <Button
+                    className='btn-block btn-danger'
+                    onClick={() => handleDeleteBook(book.bookId)}>
+                    Eliminar este libro
+                  </Button>
+                </Card.Body>
+              </Card>
+            </Col>
+          ))
+        ) : (
+          <Col>
+            <p>No tienes libros guardados.</p>
+          </Col>
+        )}
+      </Row>
+      
+      <div className="mt-4 d-flex flex-wrap gap-2">
+        <Button 
+          variant="outline-info"
+          onClick={() => {
+            const profile = Auth.getProfile() as { data?: { email: string } } | null;
+            if (profile?.data?.email) {
+              const debugUrl = `${window.location.origin}/debug-user/${profile.data.email}`;
+              window.open(debugUrl, '_blank');
+            } else {
+              console.error('No se pudo obtener el email del perfil');
+            }
+          }}
+        >
+          Ver datos de usuario
+        </Button>
+        
+        <Button 
+          variant="success" 
+          onClick={() => {
+            window.location.reload();
+          }}
+        >
+          Recargar página
+        </Button>
+      </div>
+    </Container>
   );
 };
 

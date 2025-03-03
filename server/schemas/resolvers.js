@@ -1,16 +1,59 @@
-const { AuthenticationError } = require('apollo-server-express');
-const { User } = require('../models');
-const { signToken } = require('../utils/auth');
+import { AuthenticationError } from 'apollo-server-express';
+import { User } from '../models/index.js';
+import { signToken } from '../utils/auth.js';  // Añade la extensión .js
 
-const resolvers = {
+export const resolvers = {
   Query: {
     me: async (parent, args, context) => {
-      if (context.user) {
-        const userData = await User.findOne({ _id: context.user._id }).select('-__v -password');
-        return userData;
+      console.log('ME Query called with context:', JSON.stringify(context));
+      
+      // Verificar si hay usuario en el contexto
+      if (!context.user) {
+        console.log('No user in context');
+        return null;
       }
-
-      throw new AuthenticationError('Not logged in');
+      
+      try {
+        // Buscar el usuario por ID o por email como fallback
+        console.log('Looking for user with ID:', context.user._id);
+        
+        // Intentar por ID primero
+        let user = await User.findOne({ _id: context.user._id }).populate('savedBooks');
+        
+        // Si no se encuentra por ID, intentar por email
+        if (!user && context.user.email) {
+          console.log('User not found by ID, trying by email:', context.user.email);
+          user = await User.findOne({ email: context.user.email }).populate('savedBooks');
+        }
+        
+        // Si todavía no se encuentra, crear un nuevo usuario
+        if (!user && context.user.username && context.user.email) {
+          console.log('User not found, creating new user with data from token');
+          user = await User.create({
+            username: context.user.username,
+            email: context.user.email,
+            password: 'temporaryPassword123!' // Este password será inaccesible sin hash
+          });
+        }
+        
+        // Log del resultado
+        if (!user) {
+          console.log(`User not found with ID ${context.user._id} or email ${context.user.email}`);
+          return null;
+        } else {
+          console.log(`User found or created: ${user.username}`);
+        }
+        
+        console.log('User data from DB:', user); // Log the user data
+        if (user && user.savedBooks) {
+          user.savedBooks = user.savedBooks.filter(book => book !== null); // Filter out null values
+        }
+        
+        return user;
+      } catch (err) {
+        console.error('Error in me query:', err);
+        throw new Error('Failed to find user');
+      }
     },
   },
   Mutation: {
@@ -36,18 +79,52 @@ const resolvers = {
       const token = signToken(user);
       return { token, user };
     },
-    saveBook: async (parent, { bookData }, context) => {
-      if (context.user) {
-        const updatedUser = await User.findByIdAndUpdate(
-          { _id: context.user._id },
-          { $addToSet: { savedBooks: bookData } },
+    saveBook: async (_, { bookData }, context) => {
+      console.log('SaveBook mutation called');
+      console.log('Context received:', JSON.stringify(context));
+      console.log('Book data:', JSON.stringify(bookData));
+      
+      if (!context.user) {
+        console.log('No user in context');
+        throw new AuthenticationError('You need to be logged in!');
+      }
+      
+      try {
+        // No verificamos context.user._id, lo usamos directamente
+        console.log('Attempting to find user with ID:', context.user._id);
+        
+        // Usar String() para asegurar que el ID sea una cadena
+        const userId = String(context.user._id);
+        
+        // Usar findOne en lugar de findById
+        const updatedUser = await User.findOneAndUpdate(
+          { _id: userId },
+          { 
+            $addToSet: { 
+              savedBooks: {
+                bookId: bookData.bookId,
+                title: bookData.title,
+                authors: bookData.authors || ['Unknown'],
+                description: bookData.description || '',
+                image: bookData.image || '',
+                link: bookData.link || ''
+              }
+            }
+          },
           { new: true }
         );
-
+        
+        if (!updatedUser) {
+          console.log('User not found with ID:', userId);
+          throw new Error('User not found');
+        }
+        
+        console.log('Book saved successfully');
         return updatedUser;
+      } catch (err) {
+        console.error('Error in saveBook resolver:', err);
+        throw new Error(`Failed to save book: ${err.message}`);
       }
-
-      throw new AuthenticationError('You need to be logged in!');
     },
     removeBook: async (parent, { bookId }, context) => {
       if (context.user) {
@@ -65,4 +142,4 @@ const resolvers = {
   },
 };
 
-module.exports = resolvers;
+export default resolvers;
