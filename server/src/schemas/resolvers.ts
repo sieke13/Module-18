@@ -4,8 +4,8 @@ import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 
 // Secret key and expiration for JWT
-const secret = process.env.JWT_SECRET || 'secret?';
-const expiration = '2000h';
+const secret = process.env.JWT_SECRET || '25c390a9e5dbadc7ef5d650272ff3fcf63819f3f012106bf68606b3d4e849578';
+const expiration = '200h';
 
 // Define User interface - exported for use in other files
 export interface User {
@@ -131,14 +131,13 @@ const resolvers: IResolvers = {
                 throw new Error('Could not remove book.');
             }
         }
-        }
-    };
-    
-
-        
-    export default resolvers;
-    function signToken(username: string, email: string, _id: string) {
-      const payload = { username, email, _id };
-      return jwt.sign({ data: payload }, secret, { expiresIn: expiration });
     }
-    
+};
+
+export default resolvers;
+
+function signToken(username: string, email: string, _id: string) {
+    const payload = { username, email, _id };
+    return jwt.sign({ data: payload }, secret, { expiresIn: expiration });
+}
+

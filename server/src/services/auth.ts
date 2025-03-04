@@ -13,6 +13,10 @@ interface UserPayload {
   _id: string;
 }
 
+export const authMiddleware = (req: Request) => {
+  // Allows token to be sent via req.body, req.query, or headers
+  let token = req.body.token || req.query.token || req.headers.authorization;
+};
 export const signToken = ({ username, email, _id }: UserPayload) => {
   const payload = { username, email, _id };
   return jwt.sign({ data: payload }, secret, { expiresIn: expiration });
