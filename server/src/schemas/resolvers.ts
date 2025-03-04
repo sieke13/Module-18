@@ -4,8 +4,8 @@ import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 
 // Secret key and expiration for JWT
-const secret = process.env.JWT_SECRET || '25c390a9e5dbadc7ef5d650272ff3fcf63819f3f012106bf68606b3d4e849578';
-const expiration = '200h';
+const secret = process.env.JWT_SECRET_KEY || 'secret';
+const expiration = '2000h';
 
 // Define User interface - exported for use in other files
 export interface User {
