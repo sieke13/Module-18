@@ -7,8 +7,8 @@ import dotenv from 'dotenv';
 
 // Importaciones de archivos locales (con extensiones .js)
 import connectDB from './config/connection.js';
-import {typeDefs} from './schemas/typeDefs.js';
-import resolvers from './schemas/resolvers.js';
+import {typeDefs, resolvers} from './schemas/index.js';
+
 import { authMiddleware } from './services/auth.js';
 
 // Configuración básica
